@@ -1,0 +1,56 @@
+namespace XimperShellDock {
+
+    public class DockTrigger : Gtk.Window {
+
+        public signal void trigger_activated ();
+        public bool cursor_on_trigger { get; private set; default = false; }
+
+        public DockTrigger (Application app, Gdk.Monitor? monitor = null) {
+            this.title = "Ximper Shell Dock Trigger";
+            this.decorated = false;
+
+            GtkLayerShell.init_for_window (this);
+            GtkLayerShell.set_layer (this, GtkLayerShell.Layer.OVERLAY);
+            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.BOTTOM, true);
+            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.LEFT, true);
+            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.RIGHT, true);
+            GtkLayerShell.set_exclusive_zone (this, 0);
+            GtkLayerShell.set_keyboard_mode (this, GtkLayerShell.KeyboardMode.NONE);
+            GtkLayerShell.set_namespace (this, "ximper-shell-dock-hotspot");
+
+            if (monitor != null) {
+                GtkLayerShell.set_monitor (this, monitor);
+            }
+
+            // Remove adwaita window background, our DrawingArea handles rendering
+            remove_css_class ("background");
+
+            // DrawingArea draws near-invisible content to keep Wayland surface alive for input
+            var hotspot = new Gtk.DrawingArea ();
+            hotspot.set_size_request (-1, 4);
+            hotspot.set_draw_func ((area, cr, w, h) => {
+                cr.set_source_rgba (0, 0, 0, 0.004);
+                cr.set_operator (Cairo.Operator.SOURCE);
+                cr.paint ();
+            });
+
+            var motion = new Gtk.EventControllerMotion ();
+            motion.enter.connect ((x, y) => {
+                cursor_on_trigger = true;
+                trigger_activated ();
+            });
+            motion.leave.connect (() => {
+                cursor_on_trigger = false;
+            });
+            ((Gtk.Widget) hotspot).add_controller (motion);
+
+            var click = new Gtk.GestureClick ();
+            click.pressed.connect ((n, x, y) => {
+                trigger_activated ();
+            });
+            ((Gtk.Widget) hotspot).add_controller (click);
+
+            set_child (hotspot);
+        }
+    }
+}

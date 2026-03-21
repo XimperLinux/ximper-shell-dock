@@ -1,0 +1,55 @@
+/* Dock */
+.dock-window {
+    background: @headerbar_bg_color;
+    padding: 2px 6px;
+}
+
+.dock-window.floating {
+    border-radius: 14px;
+    box-shadow: 0 1px 3px @headerbar_shade_color;
+}
+
+.dock-window.pinned {
+    border-radius: 0;
+    box-shadow: 0 -1px 0 @headerbar_shade_color;
+}
+
+.dock-icon {
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 200ms ease;
+}
+
+.dock-icon:hover {
+    background: alpha(@accent_bg_color, 0.15);
+}
+
+.dock-icon:active {
+    background: alpha(@accent_bg_color, 0.3);
+}
+
+.dock-separator {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.dock-icon-focused {
+    background: alpha(@accent_bg_color, 0.12);
+}
+
+.dock-indicator-box {
+    min-height: 3px;
+}
+
+.dock-indicator {
+    background: @accent_bg_color;
+    border-radius: 2px;
+    min-width: 6px;
+    min-height: 3px;
+}
+
+.tile-dragging {
+    opacity: 0.4;
+}

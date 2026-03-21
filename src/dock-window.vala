@@ -1,0 +1,439 @@
+namespace XimperShellDock {
+
+    public class DockWindow : Gtk.Window {
+
+        public signal void grid_requested ();
+
+        private weak Application app;
+        private Gtk.Box icon_box;
+        private Gtk.Box running_box;
+        private Gtk.Button grid_button;
+        private bool autohide_enabled = false;
+        private bool popover_open = false;
+        private bool dnd_active = false;
+        private bool cursor_inside = false;
+        private uint hide_timeout_id = 0;
+        private uint watchdog_id = 0;
+        private weak DockTrigger? linked_trigger = null;
+        private int64 show_timestamp = 0;
+
+        private int DOCK_HEIGHT = 64;
+        private const int HIDE_DELAY_MS = 300;
+        private const int SHOW_GRACE_MS = 600;
+
+        public DockWindow (Application app, Gdk.Monitor? monitor = null) {
+            this.app = app;
+            this.title = "Ximper Shell Dock";
+            this.decorated = false;
+
+            add_css_class ("dock-window");
+            DOCK_HEIGHT = app.config.icon_size + 12;
+
+            LayerShellHelper.setup_dock_floating (this, 8);
+            if (monitor != null) {
+                GtkLayerShell.set_monitor (this, monitor);
+            }
+            apply_mode ();
+
+            build_ui ();
+            populate_icons ();
+
+            app.config.notify["icon-size"].connect (() => {
+                rebuild_dock ();
+            });
+
+            var motion = new Gtk.EventControllerMotion ();
+            motion.leave.connect (() => {
+                cursor_inside = false;
+                if (autohide_enabled && !popover_open && !dnd_active) {
+                    schedule_hide ();
+                }
+            });
+            motion.enter.connect ((x, y) => {
+                cursor_inside = true;
+                cancel_hide ();
+            });
+            ((Gtk.Widget) this).add_controller (motion);
+        }
+
+        public void set_trigger (DockTrigger trigger) {
+            this.linked_trigger = trigger;
+        }
+
+        public void apply_mode () {
+            LayerShellHelper.apply_dock_mode (this, app.config.dock_mode, DOCK_HEIGHT);
+        }
+
+        public void enable_autohide (bool enabled) {
+            autohide_enabled = enabled;
+            if (!enabled) {
+                cancel_hide ();
+                if (watchdog_id != 0) { Source.remove (watchdog_id); watchdog_id = 0; }
+                set_visible (true);
+            } else {
+                if (watchdog_id == 0) {
+                    watchdog_id = Timeout.add (400, () => {
+                        bool on_trigger = linked_trigger != null && linked_trigger.cursor_on_trigger;
+                        int64 now = GLib.get_monotonic_time () / 1000;
+                        bool in_grace = (now - show_timestamp) < SHOW_GRACE_MS;
+                        if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !in_grace) {
+                            hide_animated ();
+                        }
+                        return Source.CONTINUE;
+                    });
+                }
+            }
+        }
+
+        public void show_animated () {
+            cancel_hide ();
+            show_timestamp = GLib.get_monotonic_time () / 1000;
+            set_visible (true);
+            opacity = 0;
+
+            var target = new Adw.PropertyAnimationTarget (this, "opacity");
+            var anim = new Adw.TimedAnimation (this, 0.0, 1.0, 200, target);
+            anim.play ();
+        }
+
+        public void hide_animated () {
+            cursor_inside = false;
+            var target = new Adw.PropertyAnimationTarget (this, "opacity");
+            var anim = new Adw.TimedAnimation (this, 1.0, 0.0, 200, target);
+            anim.done.connect (() => {
+                set_visible (false);
+                opacity = 1;
+            });
+            anim.play ();
+        }
+
+        public void update_indicators () {
+            var tracker = app.window_tracker;
+
+            // Update pinned icons
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) {
+                    var icon = (DockIcon) child;
+                    icon.set_running (tracker.is_running (icon.desktop_id));
+                    icon.set_focused (tracker.is_focused (icon.desktop_id));
+                }
+                child = child.get_next_sibling ();
+            }
+
+            // Show running-but-not-pinned apps
+            var running_child = running_box.get_first_child ();
+            while (running_child != null) {
+                var next = running_child.get_next_sibling ();
+                running_box.remove (running_child);
+                running_child = next;
+            }
+
+            var pinned = app.config.pinned_apps;
+            var shown_classes = new GenericArray<string> ();
+
+            // Collect pinned classes
+            if (pinned != null) {
+                for (uint i = 0; i < pinned.length; i++) {
+                    shown_classes.add (pinned[i]);
+                }
+            }
+
+            // Add running apps not in pinned
+            if (tracker.running_apps == null) return;
+            for (uint i = 0; i < tracker.running_apps.length; i++) {
+                var running = tracker.running_apps[i];
+                bool already_shown = false;
+
+                for (uint j = 0; j < shown_classes.length; j++) {
+                    var pid = shown_classes[j].replace (".desktop", "");
+                    if (running.app_class == pid ||
+                        running.app_class.down () == pid.down ()) {
+                        already_shown = true;
+                        break;
+                    }
+                    var parts = pid.split (".");
+                    if (parts.length > 0 &&
+                        running.app_class.down () == parts[parts.length - 1].down ()) {
+                        already_shown = true;
+                        break;
+                    }
+                }
+
+                if (!already_shown) {
+                    // Check if we already added this class
+                    bool dup = false;
+                    for (uint k = 0; k < shown_classes.length; k++) {
+                        if (shown_classes[k] == running.app_class) {
+                            dup = true;
+                            break;
+                        }
+                    }
+                    if (dup) continue;
+
+                    shown_classes.add (running.app_class);
+
+                    // Find the AppEntry for this running app
+                    var entry = find_entry_by_class (running.app_class);
+                    if (entry != null) {
+                        var icon = new DockIcon (entry, app.config.icon_size, false);
+                        icon.set_running (true);
+                        icon.set_focused (tracker.focused_class == running.app_class);
+                        icon.pin_requested.connect ((id) => {
+                            pin_app (id);
+                        });
+                        icon.popover_state_changed.connect ((open) => {
+                            popover_open = open;
+                            if (open) cancel_hide ();
+                            else if (autohide_enabled) schedule_hide ();
+                        });
+                        running_box.append (icon);
+                    }
+                }
+            }
+
+            // Show/hide separator
+            bool has_running = running_box.get_first_child () != null;
+            running_box.visible = has_running;
+        }
+
+        private AppEntry? find_entry_by_class (string app_class) {
+            var apps = app.app_provider.apps;
+            if (apps == null) return null;
+            for (uint i = 0; i < apps.length; i++) {
+                var id = apps[i].desktop_id.replace (".desktop", "");
+                if (id == app_class || id.down () == app_class.down ()) {
+                    return apps[i];
+                }
+                var parts = id.split (".");
+                if (parts.length > 0 &&
+                    parts[parts.length - 1].down () == app_class.down ()) {
+                    return apps[i];
+                }
+            }
+            return null;
+        }
+
+        private void build_ui () {
+            var main_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            main_box.halign = Gtk.Align.CENTER;
+            main_box.valign = Gtk.Align.CENTER;
+
+            // Grid button — same structure as DockIcon
+            var grid_wrapper = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            grid_wrapper.halign = Gtk.Align.CENTER;
+
+            grid_button = new Gtk.Button ();
+            grid_button.add_css_class ("dock-icon");
+            grid_button.add_css_class ("flat");
+            var grid_image = new Gtk.Image.from_icon_name ("view-app-grid-symbolic");
+            grid_image.pixel_size = app.config.icon_size;
+            grid_button.set_child (grid_image);
+            grid_button.tooltip_text = "Applications";
+            grid_button.clicked.connect (() => {
+                grid_requested ();
+            });
+            grid_wrapper.append (grid_button);
+
+            // Match DockIcon indicator_box height
+            var grid_indicator = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            grid_indicator.add_css_class ("dock-indicator-box");
+            grid_wrapper.append (grid_indicator);
+
+            // Pinned icons
+            icon_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+
+            // Running (not pinned) icons
+            running_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            running_box.visible = false;
+
+            main_box.append (grid_wrapper);
+            main_box.append (icon_box);
+            main_box.append (running_box);
+
+            // DropTarget on dock — accept apps dragged from grid or other sources
+            var dock_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            dock_drop.drop.connect ((val, x, y) => {
+                var source_id = (string) val;
+                if (source_id == null || source_id.has_prefix ("folder:")) return false;
+                pin_app (source_id);
+                return true;
+            });
+            main_box.add_controller (dock_drop);
+
+            set_child (main_box);
+
+            setup_dock_context_menu (main_box);
+        }
+
+        private void setup_dock_context_menu (Gtk.Widget target) {
+            var gesture = new Gtk.GestureClick ();
+            gesture.button = Gdk.BUTTON_SECONDARY;
+            gesture.pressed.connect ((n, x, y) => {
+                show_dock_menu ();
+            });
+            target.add_controller (gesture);
+        }
+
+        private void show_dock_menu () {
+            var popover = new Gtk.Popover ();
+            popover.set_parent (this);
+            popover.has_arrow = true;
+            popover.autohide = true;
+
+            var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
+            menu_box.margin_top = 4;
+            menu_box.margin_bottom = 4;
+            menu_box.margin_start = 4;
+            menu_box.margin_end = 4;
+
+            var settings_btn = new Gtk.Button.with_label ("Settings");
+            settings_btn.add_css_class ("flat");
+            settings_btn.halign = Gtk.Align.FILL;
+            settings_btn.clicked.connect (() => {
+                popover.popdown ();
+                open_settings ();
+            });
+            menu_box.append (settings_btn);
+
+            popover.set_child (menu_box);
+            popover_open = true;
+            cancel_hide ();
+            popover.popup ();
+
+            popover.closed.connect (() => {
+                popover_open = false;
+                popover.unparent ();
+                if (autohide_enabled) {
+                    schedule_hide ();
+                }
+            });
+        }
+
+        private void open_settings () {
+            var settings = new SettingsWindow (app);
+            settings.present ();
+        }
+
+        public void rebuild_dock () {
+            DOCK_HEIGHT = app.config.icon_size + 12;
+
+            var grid_img = (Gtk.Image) grid_button.get_child ();
+            if (grid_img != null) {
+                grid_img.pixel_size = app.config.icon_size;
+            }
+            populate_icons ();
+            update_indicators ();
+            apply_mode ();
+        }
+
+        private void populate_icons () {
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                var next = child.get_next_sibling ();
+                icon_box.remove (child);
+                child = next;
+            }
+
+            var pinned = app.config.pinned_apps;
+            if (pinned == null) return;
+            for (uint i = 0; i < pinned.length; i++) {
+                var entry = app.app_provider.find_by_desktop_id (pinned[i]);
+                if (entry != null) {
+                    var icon = new DockIcon (entry, app.config.icon_size);
+                    icon.unpin_requested.connect ((id) => {
+                        unpin_app (id);
+                    });
+                    icon.popover_state_changed.connect ((open) => {
+                        popover_open = open;
+                        if (open) cancel_hide ();
+                        else if (autohide_enabled) schedule_hide ();
+                    });
+                    icon.drop_received.connect ((src_id, tgt_id) => {
+                        reorder_pinned (src_id, tgt_id);
+                    });
+                    icon.drag_state_changed.connect ((active) => {
+                        dnd_active = active;
+                        if (active) cancel_hide ();
+                    });
+                    icon_box.append (icon);
+                }
+            }
+        }
+
+        private void pin_app (string desktop_id) {
+            var pinned = app.config.pinned_apps;
+            if (pinned == null) {
+                pinned = new GenericArray<string> ();
+            }
+            for (uint i = 0; i < pinned.length; i++) {
+                if (pinned[i] == desktop_id) return;
+            }
+            pinned.add (desktop_id);
+            app.config.pinned_apps = pinned;
+            app.config.save ();
+            populate_icons ();
+            update_indicators ();
+        }
+
+        private void reorder_pinned (string source_id, string target_id) {
+            var pinned = app.config.pinned_apps;
+            if (pinned == null) return;
+
+            int idx_a = -1, idx_b = -1;
+            for (uint i = 0; i < pinned.length; i++) {
+                if (pinned[i] == source_id) idx_a = (int) i;
+                if (pinned[i] == target_id) idx_b = (int) i;
+            }
+
+            if (idx_a >= 0 && idx_b >= 0 && idx_a != idx_b) {
+                // Swap positions
+                var tmp = pinned[idx_a];
+                pinned[idx_a] = pinned[idx_b];
+                pinned[idx_b] = tmp;
+            } else if (idx_a < 0 && idx_b >= 0) {
+                // Source not pinned — insert before target
+                pinned.insert (idx_b, source_id);
+            } else {
+                return;
+            }
+
+            app.config.pinned_apps = pinned;
+            app.config.save ();
+            populate_icons ();
+            update_indicators ();
+        }
+
+        private void unpin_app (string desktop_id) {
+            var new_pinned = new GenericArray<string> ();
+            var pinned = app.config.pinned_apps;
+            if (pinned == null) return;
+            for (uint i = 0; i < pinned.length; i++) {
+                if (pinned[i] != desktop_id) {
+                    new_pinned.add (pinned[i]);
+                }
+            }
+            app.config.pinned_apps = new_pinned;
+            app.config.save ();
+            populate_icons ();
+        }
+
+        private void schedule_hide () {
+            cancel_hide ();
+            hide_timeout_id = Timeout.add (HIDE_DELAY_MS, () => {
+                hide_timeout_id = 0;
+                int64 now = GLib.get_monotonic_time () / 1000;
+                if ((now - show_timestamp) < SHOW_GRACE_MS) return Source.REMOVE;
+                hide_animated ();
+                return Source.REMOVE;
+            });
+        }
+
+        private void cancel_hide () {
+            if (hide_timeout_id != 0) {
+                Source.remove (hide_timeout_id);
+                hide_timeout_id = 0;
+            }
+        }
+    }
+}

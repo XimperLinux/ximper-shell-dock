@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Ximper Shell Dock
+Comment=Application dock panel
+Exec=ximper-shell-dock
+Icon=view-paged-symbolic
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=dock;panel;taskbar;
