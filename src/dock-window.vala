@@ -17,6 +17,14 @@ namespace XimperShellDock {
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
 
+        // DnD spacer-based gap animation
+        private weak DockIcon? drag_source_icon = null;
+        private int drop_gap_index = -1;
+        private Gtk.Widget? gap_spacer = null;
+        private Gtk.Widget? gap_spacer_old = null;
+        private Adw.TimedAnimation? gap_grow_anim = null;
+        private Adw.TimedAnimation? gap_shrink_anim = null;
+
         private int DOCK_HEIGHT = 64;
         private const int HIDE_DELAY_MS = 300;
         private const int SHOW_GRACE_MS = 600;
@@ -251,6 +259,32 @@ namespace XimperShellDock {
             main_box.append (icon_box);
             main_box.append (running_box);
 
+            // DropTarget on icon_box — reorder with animated spacer gap
+            var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            icon_drop.motion.connect ((x, y) => {
+                int idx = compute_insert_index (x);
+                move_gap_to (idx);
+                return Gdk.DragAction.MOVE;
+            });
+            icon_drop.leave.connect (() => {
+                // Return spacer to source position if dragging from dock
+                if (drag_source_icon != null) {
+                    int src_idx = get_source_visual_index ();
+                    move_gap_to (src_idx);
+                } else {
+                    remove_all_spacers ();
+                }
+            });
+            icon_drop.drop.connect ((val, x, y) => {
+                var source_id = (string) val;
+                if (source_id == null || source_id.has_prefix ("folder:")) return false;
+                int idx = compute_insert_index (x);
+                remove_all_spacers ();
+                reorder_pinned_at (source_id, idx);
+                return true;
+            });
+            icon_box.add_controller (icon_drop);
+
             // DropTarget on dock — accept apps dragged from grid or other sources
             var dock_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             dock_drop.drop.connect ((val, x, y) => {
@@ -334,6 +368,10 @@ namespace XimperShellDock {
                 icon_box.remove (child);
                 child = next;
             }
+            gap_spacer = null;
+            gap_spacer_old = null;
+            drop_gap_index = -1;
+            drag_source_icon = null;
 
             var pinned = app.config.pinned_apps;
             if (pinned == null) return;
@@ -349,17 +387,185 @@ namespace XimperShellDock {
                         if (open) cancel_hide ();
                         else if (autohide_enabled) schedule_hide ();
                     });
-                    icon.drop_received.connect ((src_id, tgt_id) => {
-                        reorder_pinned (src_id, tgt_id);
-                    });
                     icon.drag_state_changed.connect ((active) => {
                         dnd_active = active;
-                        if (active) cancel_hide ();
+                        if (active) {
+                            begin_icon_drag (icon);
+                        } else {
+                            end_icon_drag ();
+                        }
                     });
                     icon_box.append (icon);
                 }
             }
         }
+
+        // ── DnD gap management ──────────────────────────────────
+
+        private int get_spacer_width () {
+            return app.config.icon_size + 8;
+        }
+
+        // Called when an icon drag begins. Hides the source and
+        // inserts a full-size spacer at its position so that
+        // the total box width stays constant — no re-centering.
+        private void begin_icon_drag (DockIcon icon) {
+            drag_source_icon = icon;
+            cancel_hide ();
+
+            // Find visual index of the source before hiding
+            int src_idx = 0;
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                if (child == icon) break;
+                if (child.visible && child is DockIcon) src_idx++;
+                child = child.get_next_sibling ();
+            }
+
+            icon.visible = false;
+
+            // Place spacer at source position (full width, no animation)
+            int w = get_spacer_width ();
+            gap_spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            gap_spacer.set_size_request (w, 1);
+            insert_spacer_at (gap_spacer, src_idx);
+            drop_gap_index = src_idx;
+        }
+
+        // Called when the drag ends (drop or cancel).
+        private void end_icon_drag () {
+            remove_all_spacers ();
+            if (drag_source_icon != null) {
+                drag_source_icon.visible = true;
+            }
+            drag_source_icon = null;
+        }
+
+        // Get the visual index where the source icon was (among
+        // visible DockIcons, excluding the hidden source).
+        private int get_source_visual_index () {
+            if (drag_source_icon == null) return 0;
+            int idx = 0;
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                if (child == drag_source_icon) return idx;
+                if (child is DockIcon && child.visible) idx++;
+                child = child.get_next_sibling ();
+            }
+            return idx;
+        }
+
+        // Compute insertion index from cursor X. Only considers
+        // visible DockIcon widgets — spacers are skipped.
+        private int compute_insert_index (double cursor_x) {
+            int index = 0;
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                if (child.visible && child is DockIcon) {
+                    Graphene.Rect bounds;
+                    if (child.compute_bounds (icon_box, out bounds)) {
+                        double mid = bounds.origin.x + bounds.size.width / 2.0;
+                        if (cursor_x < mid) return index;
+                    }
+                    index++;
+                }
+                child = child.get_next_sibling ();
+            }
+            return index;
+        }
+
+        // Move the gap spacer to a new position. Uses two spacers
+        // simultaneously — old one shrinks, new one grows — so
+        // total width stays constant and icons slide smoothly.
+        private void move_gap_to (int new_index) {
+            if (new_index == drop_gap_index) return;
+
+            int w = get_spacer_width ();
+
+            // Cancel running animations
+            if (gap_grow_anim != null) { gap_grow_anim.pause (); gap_grow_anim = null; }
+            if (gap_shrink_anim != null) { gap_shrink_anim.pause (); gap_shrink_anim = null; }
+
+            // Clean up any leftover old spacer
+            if (gap_spacer_old != null) {
+                if (gap_spacer_old.get_parent () != null)
+                    icon_box.remove (gap_spacer_old);
+                gap_spacer_old = null;
+            }
+
+            // Demote current spacer to "old" — will shrink
+            if (gap_spacer != null) {
+                gap_spacer_old = gap_spacer;
+                var old_sp = gap_spacer_old;
+                int cur_w = old_sp.get_width ();
+                if (cur_w <= 0) cur_w = w;
+                var shrink_tgt = new Adw.CallbackAnimationTarget ((val) => {
+                    old_sp.set_size_request ((int) val, 1);
+                });
+                gap_shrink_anim = new Adw.TimedAnimation (old_sp, (double) cur_w, 0, 150, shrink_tgt);
+                gap_shrink_anim.easing = Adw.Easing.EASE_OUT_CUBIC;
+                gap_shrink_anim.done.connect (() => {
+                    if (old_sp.get_parent () != null) {
+                        icon_box.remove (old_sp);
+                    }
+                    if (gap_spacer_old == old_sp) gap_spacer_old = null;
+                });
+                gap_shrink_anim.play ();
+            }
+
+            // Create new spacer at the target position — will grow
+            drop_gap_index = new_index;
+            gap_spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            gap_spacer.set_size_request (0, 1);
+            insert_spacer_at (gap_spacer, new_index);
+
+            var new_sp = gap_spacer;
+            var grow_tgt = new Adw.CallbackAnimationTarget ((val) => {
+                new_sp.set_size_request ((int) val, 1);
+            });
+            gap_grow_anim = new Adw.TimedAnimation (new_sp, 0, (double) w, 150, grow_tgt);
+            gap_grow_anim.easing = Adw.Easing.EASE_OUT_CUBIC;
+            gap_grow_anim.play ();
+        }
+
+        // Insert a spacer widget before the Nth visible DockIcon.
+        // If index >= visible count, appends at the end.
+        private void insert_spacer_at (Gtk.Widget spacer, int before_index) {
+            int vis = 0;
+            var child = icon_box.get_first_child ();
+            while (child != null) {
+                if (child.visible && child is DockIcon) {
+                    if (vis == before_index) {
+                        // insert_child_after(widget, null) prepends
+                        var prev = child.get_prev_sibling ();
+                        icon_box.insert_child_after (spacer, prev);
+                        return;
+                    }
+                    vis++;
+                }
+                child = child.get_next_sibling ();
+            }
+            icon_box.append (spacer);
+        }
+
+        // Remove all spacer widgets and cancel animations.
+        private void remove_all_spacers () {
+            if (gap_grow_anim != null) { gap_grow_anim.pause (); gap_grow_anim = null; }
+            if (gap_shrink_anim != null) { gap_shrink_anim.pause (); gap_shrink_anim = null; }
+            if (gap_spacer != null) {
+                if (gap_spacer.get_parent () != null)
+                    icon_box.remove (gap_spacer);
+                gap_spacer = null;
+            }
+            if (gap_spacer_old != null) {
+                if (gap_spacer_old.get_parent () != null)
+                    icon_box.remove (gap_spacer_old);
+                gap_spacer_old = null;
+            }
+            drop_gap_index = -1;
+        }
+
+        // ── Pin / reorder / unpin ───────────────────────────────
 
         private void pin_app (string desktop_id) {
             var pinned = app.config.pinned_apps;
@@ -376,27 +582,23 @@ namespace XimperShellDock {
             update_indicators ();
         }
 
-        private void reorder_pinned (string source_id, string target_id) {
+        private void reorder_pinned_at (string source_id, int insert_visual_index) {
             var pinned = app.config.pinned_apps;
-            if (pinned == null) return;
+            if (pinned == null) pinned = new GenericArray<string> ();
 
-            int idx_a = -1, idx_b = -1;
+            // Remove source if already pinned
+            int src_idx = -1;
             for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] == source_id) idx_a = (int) i;
-                if (pinned[i] == target_id) idx_b = (int) i;
+                if (pinned[i] == source_id) { src_idx = (int) i; break; }
+            }
+            if (src_idx >= 0) {
+                pinned.remove_index (src_idx);
             }
 
-            if (idx_a >= 0 && idx_b >= 0 && idx_a != idx_b) {
-                // Swap positions
-                var tmp = pinned[idx_a];
-                pinned[idx_a] = pinned[idx_b];
-                pinned[idx_b] = tmp;
-            } else if (idx_a < 0 && idx_b >= 0) {
-                // Source not pinned — insert before target
-                pinned.insert (idx_b, source_id);
-            } else {
-                return;
-            }
+            // Clamp and insert
+            int pos = insert_visual_index;
+            if (pos > (int) pinned.length) pos = (int) pinned.length;
+            pinned.insert (pos, source_id);
 
             app.config.pinned_apps = pinned;
             app.config.save ();
@@ -424,6 +626,8 @@ namespace XimperShellDock {
                 hide_timeout_id = 0;
                 int64 now = GLib.get_monotonic_time () / 1000;
                 if ((now - show_timestamp) < SHOW_GRACE_MS) return Source.REMOVE;
+                bool on_trigger = linked_trigger != null && linked_trigger.cursor_on_trigger;
+                if (cursor_inside || on_trigger || popover_open || dnd_active) return Source.REMOVE;
                 hide_animated ();
                 return Source.REMOVE;
             });

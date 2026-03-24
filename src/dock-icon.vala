@@ -16,7 +16,6 @@ namespace XimperShellDock {
         public signal void unpin_requested (string desktop_id);
         public signal void pin_requested (string desktop_id);
         public signal void popover_state_changed (bool open);
-        public signal void drop_received (string source_id, string target_id);
         public signal void drag_state_changed (bool active);
 
         public DockIcon (AppEntry entry, int icon_size, bool pinned = true) {
@@ -131,33 +130,30 @@ namespace XimperShellDock {
         }
 
         private void setup_dnd () {
-            // DragSource
             var source = new Gtk.DragSource ();
             source.set_actions (Gdk.DragAction.MOVE);
+            Gdk.Paintable? drag_paintable = null;
+            int drag_w = 0;
+            int drag_h = 0;
             source.prepare.connect ((x, y) => {
+                // Snapshot the icon before it gets hidden
+                var snapshot = new Gtk.Snapshot ();
+                this.snapshot (snapshot);
+                drag_paintable = snapshot.free_to_paintable (null);
+                drag_w = get_width ();
+                drag_h = get_height ();
                 return new Gdk.ContentProvider.for_value (desktop_id);
             });
             source.drag_begin.connect ((drag) => {
-                var paintable = new Gtk.WidgetPaintable (this);
-                source.set_icon (paintable, get_width () / 2, get_height () / 2);
-                add_css_class ("tile-dragging");
+                if (drag_paintable != null) {
+                    source.set_icon (drag_paintable, drag_w / 2, drag_h / 2);
+                }
                 drag_state_changed (true);
             });
             source.drag_end.connect ((drag, del) => {
-                remove_css_class ("tile-dragging");
                 drag_state_changed (false);
             });
             button.add_controller (source);
-
-            // DropTarget — reorder within dock
-            var target = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
-            target.drop.connect ((val, x, y) => {
-                var source_id = (string) val;
-                if (source_id == null || source_id == desktop_id) return false;
-                drop_received (source_id, desktop_id);
-                return true;
-            });
-            add_controller (target);
         }
 
         private void setup_context_menu () {
