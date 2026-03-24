@@ -32,6 +32,7 @@ ximper-shell-dock --unpin <desktop_id>
   "autohide": false,
   "icon_size": 48,
   "layer": 2,
+  "launcher_fallback": "wofi --show drun",
   "pinned_apps": ["org.gnome.Nautilus.desktop"]
 }
 ```
@@ -42,6 +43,7 @@ ximper-shell-dock --unpin <desktop_id>
 | `autohide` | bool | `false` | Hide dock when not in use |
 | `icon_size` | int | `48` | Dock icon size in pixels |
 | `layer` | int | `2` | Layer shell layer (0=background, 1=bottom, 2=top, 3=overlay) |
+| `launcher_fallback` | string | `"wofi --show drun"` | Command to run when tile menu is unavailable |
 | `pinned_apps` | string[] | | List of pinned .desktop IDs |
 
 ## D-Bus

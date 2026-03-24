@@ -21,6 +21,7 @@ namespace XimperShellDock {
         public bool autohide { get; set; default = false; }
         public int icon_size { get; set; default = 48; }
         public int layer { get; set; default = 2; }
+        public string launcher_fallback { get; set; default = "wofi --show drun"; }
         public GenericArray<string> pinned_apps;
 
         private string config_path;
@@ -53,6 +54,8 @@ namespace XimperShellDock {
                     icon_size = (int) root.get_int_member ("icon_size");
                 if (root.has_member ("layer"))
                     layer = (int) root.get_int_member ("layer");
+                if (root.has_member ("launcher_fallback"))
+                    launcher_fallback = root.get_string_member ("launcher_fallback");
 
                 if (root.has_member ("pinned_apps")) {
                     pinned_apps = new GenericArray<string> ();
@@ -80,6 +83,8 @@ namespace XimperShellDock {
             builder.add_int_value (icon_size);
             builder.set_member_name ("layer");
             builder.add_int_value (layer);
+            builder.set_member_name ("launcher_fallback");
+            builder.add_string_value (launcher_fallback);
             builder.set_member_name ("pinned_apps");
             builder.begin_array ();
             if (pinned_apps == null) pinned_apps = new GenericArray<string> ();

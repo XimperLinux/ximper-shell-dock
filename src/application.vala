@@ -126,7 +126,12 @@ namespace XimperShellDock {
                     DBusCallFlags.NONE, 500, null
                 );
             } catch (Error e) {
-                warning ("Failed to toggle grid: %s", e.message);
+                // Tile menu not available — fallback to configured launcher
+                try {
+                    Process.spawn_command_line_async (config.launcher_fallback);
+                } catch (Error e2) {
+                    warning ("Failed to toggle grid: %s", e.message);
+                }
             }
         }
 
