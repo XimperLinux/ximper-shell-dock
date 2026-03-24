@@ -11,6 +11,8 @@ namespace XimperShellDock {
         private bool _is_running = false;
         private bool _is_focused = false;
 
+        private static Gtk.Popover? active_popover = null;
+
         public bool is_pinned { get; private set; }
 
         public signal void unpin_requested (string desktop_id);
@@ -27,6 +29,7 @@ namespace XimperShellDock {
             halign = Gtk.Align.CENTER;
 
             button = new Gtk.Button ();
+            button.focusable = false;
             button.add_css_class ("dock-icon");
             button.add_css_class ("flat");
 
@@ -173,6 +176,11 @@ namespace XimperShellDock {
         }
 
         private void open_context_popover () {
+            // Close any other icon's popover
+            if (active_popover != null) {
+                active_popover.popdown ();
+            }
+
             var popover = new Gtk.Popover ();
             popover.set_parent (button);
             popover.has_arrow = true;
@@ -228,10 +236,12 @@ namespace XimperShellDock {
 
             popover.closed.connect (() => {
                 popover_state_changed (false);
+                if (active_popover == popover) active_popover = null;
                 popover.unparent ();
             });
 
             popover_state_changed (true);
+            active_popover = popover;
             popover.popup ();
         }
     }

@@ -13,6 +13,7 @@ namespace XimperShellDock {
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, true);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, true);
             GtkLayerShell.set_exclusive_zone (window, height);
+            GtkLayerShell.set_keyboard_mode (window, GtkLayerShell.KeyboardMode.ON_DEMAND);
             GtkLayerShell.set_namespace (window, "ximper-shell-dock");
         }
 
@@ -24,6 +25,7 @@ namespace XimperShellDock {
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, false);
             GtkLayerShell.set_margin (window, GtkLayerShell.Edge.BOTTOM, 16);
             GtkLayerShell.set_exclusive_zone (window, -1);
+            GtkLayerShell.set_keyboard_mode (window, GtkLayerShell.KeyboardMode.ON_DEMAND);
             GtkLayerShell.set_namespace (window, "ximper-shell-dock");
         }
 
