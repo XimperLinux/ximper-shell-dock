@@ -47,6 +47,17 @@ namespace XimperShellDock {
             });
             appearance_group.add (icon_row);
 
+            // Layer
+            var layer_row = new Adw.SpinRow.with_range (0, 3, 1);
+            layer_row.title = "Layer";
+            layer_row.subtitle = "0 = background, 1 = bottom, 2 = top, 3 = overlay";
+            layer_row.value = app.config.layer;
+            layer_row.notify["value"].connect (() => {
+                app.config.layer = (int) layer_row.value;
+                app.config.save ();
+            });
+            appearance_group.add (layer_row);
+
             page.add (appearance_group);
 
             // Behavior group

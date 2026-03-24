@@ -37,7 +37,7 @@ namespace XimperShellDock {
             add_css_class ("dock-window");
             DOCK_HEIGHT = app.config.icon_size + 12;
 
-            LayerShellHelper.setup_dock_floating (this, 8);
+            LayerShellHelper.setup_dock_floating (this, 8, LayerShellHelper.parse_layer (app.config.layer));
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
             }
@@ -69,6 +69,7 @@ namespace XimperShellDock {
         }
 
         public void apply_mode () {
+            GtkLayerShell.set_layer (this, LayerShellHelper.parse_layer (app.config.layer));
             LayerShellHelper.apply_dock_mode (this, app.config.dock_mode, DOCK_HEIGHT);
         }
 

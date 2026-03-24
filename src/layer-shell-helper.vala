@@ -2,9 +2,13 @@ namespace XimperShellDock {
 
     public class LayerShellHelper {
 
-        public static void setup_dock_pinned (Gtk.Window window, int height) {
+        public static GtkLayerShell.Layer parse_layer (int val) {
+            return (GtkLayerShell.Layer) val.clamp (0, 3);
+        }
+
+        public static void setup_dock_pinned (Gtk.Window window, int height, GtkLayerShell.Layer layer) {
             GtkLayerShell.init_for_window (window);
-            GtkLayerShell.set_layer (window, GtkLayerShell.Layer.TOP);
+            GtkLayerShell.set_layer (window, layer);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.BOTTOM, true);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, true);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, true);
@@ -12,9 +16,9 @@ namespace XimperShellDock {
             GtkLayerShell.set_namespace (window, "ximper-shell-dock");
         }
 
-        public static void setup_dock_floating (Gtk.Window window, int margin) {
+        public static void setup_dock_floating (Gtk.Window window, int margin, GtkLayerShell.Layer layer) {
             GtkLayerShell.init_for_window (window);
-            GtkLayerShell.set_layer (window, GtkLayerShell.Layer.TOP);
+            GtkLayerShell.set_layer (window, layer);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.BOTTOM, true);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, false);
             GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, false);
