@@ -16,6 +16,7 @@ namespace XimperShellDock {
         private uint watchdog_id = 0;
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
+        private int64 leave_timestamp = 0;
 
         // DnD spacer-based gap animation
         private weak DockIcon? drag_source_icon = null;
@@ -53,12 +54,14 @@ namespace XimperShellDock {
             var motion = new Gtk.EventControllerMotion ();
             motion.leave.connect (() => {
                 cursor_inside = false;
+                leave_timestamp = GLib.get_monotonic_time () / 1000;
                 if (autohide_enabled && !popover_open && !dnd_active) {
                     schedule_hide ();
                 }
             });
             motion.enter.connect ((x, y) => {
                 cursor_inside = true;
+                show_timestamp = GLib.get_monotonic_time () / 1000;
                 cancel_hide ();
             });
             ((Gtk.Widget) this).add_controller (motion);
@@ -84,8 +87,9 @@ namespace XimperShellDock {
                     watchdog_id = Timeout.add (400, () => {
                         bool on_trigger = linked_trigger != null && linked_trigger.cursor_on_trigger;
                         int64 now = GLib.get_monotonic_time () / 1000;
-                        bool in_grace = (now - show_timestamp) < SHOW_GRACE_MS;
-                        if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !in_grace) {
+                        bool in_show_grace = (now - show_timestamp) < SHOW_GRACE_MS;
+                        bool in_leave_grace = (now - leave_timestamp) < HIDE_DELAY_MS;
+                        if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !in_show_grace && !in_leave_grace) {
                             hide_animated ();
                         }
                         return Source.CONTINUE;
