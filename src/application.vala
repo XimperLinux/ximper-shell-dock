@@ -115,22 +115,28 @@ namespace XimperShellDock {
         }
 
         private void toggle_grid () {
-            try {
-                var conn = Bus.get_sync (BusType.SESSION, null);
-                conn.call_sync (
-                    "ru.ximperlinux.shell.TileMenu",
-                    "/ru/ximperlinux/shell/TileMenu",
-                    "ru.ximperlinux.shell.TileMenu",
-                    "Toggle",
-                    null, null,
-                    DBusCallFlags.NONE, 500, null
-                );
-            } catch (Error e) {
-                // Tile menu not available — fallback to configured launcher
+            for (int attempt = 0; attempt < 3; attempt++) {
                 try {
-                    Process.spawn_command_line_async (config.launcher_fallback);
-                } catch (Error e2) {
-                    warning ("Failed to toggle grid: %s", e.message);
+                    var conn = Bus.get_sync (BusType.SESSION, null);
+                    conn.call_sync (
+                        "ru.ximperlinux.shell.TileMenu",
+                        "/ru/ximperlinux/shell/TileMenu",
+                        "ru.ximperlinux.shell.TileMenu",
+                        "Toggle",
+                        null, null,
+                        DBusCallFlags.NONE, 500, null
+                    );
+                    return;
+                } catch (Error e) {
+                    if (attempt < 2) {
+                        Thread.usleep (100000);
+                        continue;
+                    }
+                    try {
+                        Process.spawn_command_line_async (config.launcher_fallback);
+                    } catch (Error e2) {
+                        warning ("Failed to toggle grid: %s", e.message);
+                    }
                 }
             }
         }
