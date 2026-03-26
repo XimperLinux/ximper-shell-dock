@@ -23,6 +23,6 @@ dock_sources = files(
 
 executable('ximper-shell-dock', dock_sources,
   dependencies: dock_deps,
-
+  c_args: ['-w'],
   install: true,
 )
