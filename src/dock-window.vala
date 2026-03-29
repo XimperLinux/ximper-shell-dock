@@ -195,6 +195,9 @@ namespace XimperShellDock {
                         icon.pin_requested.connect ((id) => {
                             pin_app (id);
                         });
+                        icon.focus_requested.connect ((id) => {
+                            app.window_tracker.focus_window (id);
+                        });
                         icon.popover_state_changed.connect ((open) => {
                             popover_open = open;
                             if (open) cancel_hide ();
@@ -208,6 +211,7 @@ namespace XimperShellDock {
             // Show/hide separator
             bool has_running = running_box.get_first_child () != null;
             running_box.visible = has_running;
+            queue_resize ();
         }
 
         private AppEntry? find_entry_by_class (string app_class) {
@@ -364,6 +368,7 @@ namespace XimperShellDock {
             populate_icons ();
             update_indicators ();
             apply_mode ();
+            queue_resize ();
         }
 
         private void populate_icons () {
@@ -386,6 +391,9 @@ namespace XimperShellDock {
                     var icon = new DockIcon (entry, app.config.icon_size);
                     icon.unpin_requested.connect ((id) => {
                         unpin_app (id);
+                    });
+                    icon.focus_requested.connect ((id) => {
+                        app.window_tracker.focus_window (id);
                     });
                     icon.popover_state_changed.connect ((open) => {
                         popover_open = open;
@@ -431,8 +439,7 @@ namespace XimperShellDock {
 
             // Place spacer at source position (full width, no animation)
             int w = get_spacer_width ();
-            gap_spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
-            gap_spacer.set_size_request (w, 1);
+            gap_spacer = create_spacer (w);
             insert_spacer_at (gap_spacer, src_idx);
             drop_gap_index = src_idx;
         }
@@ -493,8 +500,7 @@ namespace XimperShellDock {
 
             // Clean up any leftover old spacer
             if (gap_spacer_old != null) {
-                if (gap_spacer_old.get_parent () != null)
-                    icon_box.remove (gap_spacer_old);
+                deferred_remove (gap_spacer_old);
                 gap_spacer_old = null;
             }
 
@@ -510,18 +516,15 @@ namespace XimperShellDock {
                 gap_shrink_anim = new Adw.TimedAnimation (old_sp, (double) cur_w, 0, 150, shrink_tgt);
                 gap_shrink_anim.easing = Adw.Easing.EASE_OUT_CUBIC;
                 gap_shrink_anim.done.connect (() => {
-                    if (old_sp.get_parent () != null) {
-                        icon_box.remove (old_sp);
-                    }
                     if (gap_spacer_old == old_sp) gap_spacer_old = null;
+                    deferred_remove (old_sp);
                 });
                 gap_shrink_anim.play ();
             }
 
             // Create new spacer at the target position — will grow
             drop_gap_index = new_index;
-            gap_spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
-            gap_spacer.set_size_request (0, 1);
+            gap_spacer = create_spacer (0);
             insert_spacer_at (gap_spacer, new_index);
 
             var new_sp = gap_spacer;
@@ -553,18 +556,33 @@ namespace XimperShellDock {
             icon_box.append (spacer);
         }
 
+        private Gtk.Widget create_spacer (int width) {
+            var spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            spacer.set_size_request (width, 1);
+            spacer.sensitive = false;
+            spacer.can_target = false;
+            return spacer;
+        }
+
+        private void deferred_remove (Gtk.Widget widget) {
+            widget.visible = false;
+            Idle.add (() => {
+                if (widget.get_parent () != null)
+                    icon_box.remove (widget);
+                return Source.REMOVE;
+            });
+        }
+
         // Remove all spacer widgets and cancel animations.
         private void remove_all_spacers () {
             if (gap_grow_anim != null) { gap_grow_anim.pause (); gap_grow_anim = null; }
             if (gap_shrink_anim != null) { gap_shrink_anim.pause (); gap_shrink_anim = null; }
             if (gap_spacer != null) {
-                if (gap_spacer.get_parent () != null)
-                    icon_box.remove (gap_spacer);
+                deferred_remove (gap_spacer);
                 gap_spacer = null;
             }
             if (gap_spacer_old != null) {
-                if (gap_spacer_old.get_parent () != null)
-                    icon_box.remove (gap_spacer_old);
+                deferred_remove (gap_spacer_old);
                 gap_spacer_old = null;
             }
             drop_gap_index = -1;
