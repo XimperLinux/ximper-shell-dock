@@ -174,13 +174,13 @@ namespace XimperShellDock {
                 var array = parser.get_root ().get_array ();
                 array.foreach_element ((arr, idx, node) => {
                     var obj = node.get_object ();
+                    if (!obj.has_member ("class")) return;
                     var app_class = obj.get_string_member ("class");
-                    var pid = (int) obj.get_int_member ("pid");
-                    var title = obj.get_string_member ("title");
+                    if (app_class == null || app_class.length == 0) return;
+                    var pid = obj.has_member ("pid") ? (int) obj.get_int_member ("pid") : 0;
+                    var title = obj.has_member ("title") ? obj.get_string_member ("title") : "";
 
-                    if (app_class != null && app_class.length > 0) {
-                        running_apps.add (new RunningApp (app_class, pid, title));
-                    }
+                    running_apps.add (new RunningApp (app_class, pid, title));
                 });
 
                 // Get focused
@@ -191,7 +191,9 @@ namespace XimperShellDock {
                 if (exit_status == 0 && stdout_buf != null && stdout_buf.length > 2) {
                     var ap = new Json.Parser ();
                     ap.load_from_data (stdout_buf);
-                    focused_class = ap.get_root ().get_object ().get_string_member ("class");
+                    var fobj = ap.get_root ().get_object ();
+                    if (fobj.has_member ("class"))
+                        focused_class = fobj.get_string_member ("class");
                 }
 
                 windows_changed ();
