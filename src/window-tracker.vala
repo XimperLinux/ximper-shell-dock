@@ -57,6 +57,23 @@ namespace XimperShellDock {
             return match_class (focused_class, app_id);
         }
 
+        public void focus_window (string desktop_id) {
+            var app_id = desktop_id.replace (".desktop", "");
+            if (running_apps == null) return;
+            for (uint i = 0; i < running_apps.length; i++) {
+                if (match_class (running_apps[i].app_class, app_id)) {
+                    try {
+                        Process.spawn_command_line_async (
+                            "hyprctl dispatch focuswindow class:" + running_apps[i].app_class
+                        );
+                    } catch (Error e) {
+                        warning ("Failed to focus window: %s", e.message);
+                    }
+                    return;
+                }
+            }
+        }
+
         private bool match_class (string window_class, string app_id) {
             if (window_class == app_id) return true;
             if (window_class.down () == app_id.down ()) return true;

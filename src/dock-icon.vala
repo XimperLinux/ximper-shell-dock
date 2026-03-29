@@ -17,6 +17,7 @@ namespace XimperShellDock {
 
         public signal void unpin_requested (string desktop_id);
         public signal void pin_requested (string desktop_id);
+        public signal void focus_requested (string desktop_id);
         public signal void popover_state_changed (bool open);
         public signal void drag_state_changed (bool active);
 
@@ -44,7 +45,11 @@ namespace XimperShellDock {
             button.tooltip_text = entry.name;
 
             button.clicked.connect (() => {
-                entry.launch ();
+                if (_is_running) {
+                    focus_requested (desktop_id);
+                } else {
+                    entry.launch ();
+                }
             });
 
             append (button);
