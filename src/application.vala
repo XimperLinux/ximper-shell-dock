@@ -98,6 +98,11 @@ namespace XimperShellDock {
                 }
             });
 
+            // Apply already-collected running state immediately
+            for (uint i = 0; i < dock_windows.length; i++) {
+                dock_windows[i].update_indicators ();
+            }
+
             if (!config.autohide) {
                 for (uint i = 0; i < dock_windows.length; i++) {
                     dock_windows[i].set_visible (true);
