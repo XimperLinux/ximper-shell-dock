@@ -235,7 +235,7 @@ namespace XimperShellDock {
                 css_provider.load_from_path (css_path);
             } else {
                 string system_css = Path.build_filename (
-                    "/usr", "share", "ximper-shell-dock", "ximper-shell-dock.css"
+                    "/etc", "xdg", "ximper-shell", "dock", "style.css"
                 );
                 if (FileUtils.test (system_css, FileTest.EXISTS)) {
                     css_provider.load_from_path (system_css);
