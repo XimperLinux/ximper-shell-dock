@@ -5,7 +5,7 @@ A component of the Ximper Shell.
 
 Wayland dock with app indicators, autohide, floating/pinned modes, drag-and-drop reordering. Built with Vala, GTK4, libadwaita, gtk4-layer-shell.
 
-Supports Hyprland and (soon) other compositors.
+Supports Hyprland and Niri through compositor helpers.
 
 ## Build
 
@@ -21,6 +21,13 @@ ninja -C _build
 ximper-shell-dock --pin <desktop_id>
 ximper-shell-dock --unpin <desktop_id>
 ```
+
+## Compositor Support
+
+The dock tracks running and focused windows through compositor-specific helpers:
+
+- Hyprland: event socket (`.socket2.sock`) plus `hyprctl` for snapshots, focus, and close actions.
+- Niri: `niri msg --json windows` plus `event-stream`; focus and close actions use Niri window IDs.
 
 ## Config
 
