@@ -159,15 +159,7 @@ namespace XimperShellDock {
                 bool already_shown = false;
 
                 for (uint j = 0; j < shown_classes.length; j++) {
-                    var pid = shown_classes[j].replace (".desktop", "");
-                    if (running.app_class == pid ||
-                        running.app_class.down () == pid.down ()) {
-                        already_shown = true;
-                        break;
-                    }
-                    var parts = pid.split (".");
-                    if (parts.length > 0 &&
-                        running.app_class.down () == parts[parts.length - 1].down ()) {
+                    if (tracker.matches_desktop_id (running.app_class, shown_classes[j])) {
                         already_shown = true;
                         break;
                     }
@@ -197,6 +189,9 @@ namespace XimperShellDock {
                         });
                         icon.focus_requested.connect ((id) => {
                             app.window_tracker.focus_window (id);
+                        });
+                        icon.close_requested.connect ((id) => {
+                            app.window_tracker.close_app (id);
                         });
                         icon.popover_state_changed.connect ((open) => {
                             popover_open = open;
@@ -394,6 +389,9 @@ namespace XimperShellDock {
                     });
                     icon.focus_requested.connect ((id) => {
                         app.window_tracker.focus_window (id);
+                    });
+                    icon.close_requested.connect ((id) => {
+                        app.window_tracker.close_app (id);
                     });
                     icon.popover_state_changed.connect ((open) => {
                         popover_open = open;

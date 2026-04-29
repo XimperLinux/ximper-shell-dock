@@ -18,6 +18,7 @@ namespace XimperShellDock {
         public signal void unpin_requested (string desktop_id);
         public signal void pin_requested (string desktop_id);
         public signal void focus_requested (string desktop_id);
+        public signal void close_requested (string desktop_id);
         public signal void popover_state_changed (bool open);
         public signal void drag_state_changed (bool active);
 
@@ -85,52 +86,6 @@ namespace XimperShellDock {
             } else {
                 button.remove_css_class ("dock-icon-focused");
             }
-        }
-
-        private void kill_app () {
-            // Use hyprctl to close windows of this app
-            try {
-                Process.spawn_command_line_async (
-                    "hyprctl dispatch closewindow address:" + get_window_address ()
-                );
-            } catch (Error e) {
-                // Fallback: kill by class
-                try {
-                    var app_id = desktop_id.replace (".desktop", "");
-                    var parts = app_id.split (".");
-                    var class_name = parts.length > 0 ? parts[parts.length - 1] : app_id;
-                    Process.spawn_command_line_async (
-                        "hyprctl --batch \"dispatch closewindow " + class_name + "\""
-                    );
-                } catch (Error e2) {}
-            }
-        }
-
-        private string get_window_address () {
-            // Find window address from hyprctl clients
-            try {
-                string stdout_buf;
-                int exit_status;
-                Process.spawn_command_line_sync ("hyprctl clients -j", out stdout_buf, null, out exit_status);
-                if (exit_status == 0 && stdout_buf != null) {
-                    var parser = new Json.Parser ();
-                    parser.load_from_data (stdout_buf);
-                    var arr = parser.get_root ().get_array ();
-                    var app_id = desktop_id.replace (".desktop", "");
-                    for (uint i = 0; i < arr.get_length (); i++) {
-                        var obj = arr.get_object_element (i);
-                        var wclass = obj.get_string_member ("class");
-                        if (wclass == app_id || wclass.down () == app_id.down ()) {
-                            return obj.get_string_member ("address");
-                        }
-                        var parts = app_id.split (".");
-                        if (parts.length > 0 && wclass.down () == parts[parts.length - 1].down ()) {
-                            return obj.get_string_member ("address");
-                        }
-                    }
-                }
-            } catch (Error e) {}
-            return "";
         }
 
         public void update_icon_size (int size) {
@@ -232,7 +187,7 @@ namespace XimperShellDock {
                 var btn = make_menu_item ("Quit");
                 btn.clicked.connect (() => {
                     popover.popdown ();
-                    kill_app ();
+                    close_requested (desktop_id);
                 });
                 menu_box.append (btn);
             }

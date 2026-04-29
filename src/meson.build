@@ -4,6 +4,7 @@ dock_deps = [
   dependency('gtk4-layer-shell-0', version: '>= 1.0'),
   dependency('json-glib-1.0'),
   dependency('gio-unix-2.0'),
+  meson.get_compiler('vala').find_library('posix'),
 ]
 
 dock_sources = files(
@@ -17,6 +18,9 @@ dock_sources = files(
   'dock-icon.vala',
   'dock-trigger.vala',
   'layer-shell-helper.vala',
+  'compositor-helper.vala',
+  'hyprland-helper.vala',
+  'niri-helper.vala',
   'window-tracker.vala',
   'dbus-service.vala',
 )
