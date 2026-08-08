@@ -506,14 +506,14 @@ namespace XimperShellDock {
             // paddings and Gtk.Box spacing in a width formula.
             while (size > MIN_ICON_SIZE) {
                 set_effective_icon_size (size);
-                dock_content.measure (Gtk.Orientation.HORIZONTAL, -1,
+                wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
                                   out minimum, out natural, null, null);
                 if (natural <= available_width) break;
                 size--;
             }
 
             set_effective_icon_size (size);
-            dock_content.measure (Gtk.Orientation.HORIZONTAL, -1,
+            wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
                               out minimum, out natural, null, null);
             if (natural > available_width) {
                 warning ("Dock contents exceed monitor width even at minimum icon size (%dpx)",
