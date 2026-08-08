@@ -75,6 +75,67 @@ namespace XimperShellDock {
             });
             behavior_group.add (autohide_row);
 
+            // Hover magnification
+            var magnify_row = new Adw.SwitchRow ();
+            magnify_row.title = "Magnify icons on hover";
+            magnify_row.subtitle = "Animate nearby icons when moving the pointer over the dock";
+            magnify_row.active = app.config.magnify_on_hover;
+            magnify_row.notify["active"].connect (() => {
+                app.config.magnify_on_hover = magnify_row.active;
+                app.config.save ();
+            });
+            behavior_group.add (magnify_row);
+
+            var bounce_row = new Adw.SwitchRow ();
+            bounce_row.title = "Bounce while launching";
+            bounce_row.subtitle = "Bounce an app icon until its window appears";
+            bounce_row.active = app.config.bounce_on_launch;
+            bounce_row.notify["active"].connect (() => {
+                app.config.bounce_on_launch = bounce_row.active;
+                app.config.save ();
+            });
+            behavior_group.add (bounce_row);
+
+            var bounce_speed_row = new Adw.SpinRow.with_range (100, 500, 10);
+            bounce_speed_row.title = "Bounce speed";
+            bounce_speed_row.subtitle = "Duration of the upward launch bounce in milliseconds";
+            bounce_speed_row.value = app.config.bounce_duration;
+            bounce_speed_row.notify["value"].connect (() => {
+                app.config.bounce_duration = (int) bounce_speed_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (bounce_speed_row);
+
+            var magnify_scale_row = new Adw.SpinRow.with_range (110, 200, 5);
+            magnify_scale_row.title = "Maximum magnification";
+            magnify_scale_row.subtitle = "Largest icon size while the pointer is over it";
+            magnify_scale_row.value = app.config.magnify_scale;
+            magnify_scale_row.notify["value"].connect (() => {
+                app.config.magnify_scale = (int) magnify_scale_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (magnify_scale_row);
+
+            var magnify_radius_row = new Adw.SpinRow.with_range (1.0, 5.0, 0.25);
+            magnify_radius_row.title = "Neighbour reach";
+            magnify_radius_row.subtitle = "How many icon widths the wave affects on each side";
+            magnify_radius_row.value = app.config.magnify_radius;
+            magnify_radius_row.notify["value"].connect (() => {
+                app.config.magnify_radius = magnify_radius_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (magnify_radius_row);
+
+            var magnify_duration_row = new Adw.SpinRow.with_range (50, 400, 10);
+            magnify_duration_row.title = "Animation response";
+            magnify_duration_row.subtitle = "Time in milliseconds; lower values react faster";
+            magnify_duration_row.value = app.config.magnify_animation_duration;
+            magnify_duration_row.notify["value"].connect (() => {
+                app.config.magnify_animation_duration = (int) magnify_duration_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (magnify_duration_row);
+
             page.add (behavior_group);
 
             add (page);

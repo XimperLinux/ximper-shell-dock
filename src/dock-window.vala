@@ -1,5 +1,60 @@
 namespace XimperShellDock {
 
+    private class GridWaveIcon : Gtk.Box {
+        private double magnification = 1.0;
+        private double horizontal_offset = 0.0;
+
+        public GridWaveIcon () {
+            Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
+            halign = Gtk.Align.CENTER;
+        }
+
+        public void set_visual_state (double scale, double offset) {
+            if (magnification == scale && horizontal_offset == offset) return;
+            magnification = scale;
+            horizontal_offset = offset;
+            queue_draw ();
+        }
+
+        protected override void snapshot (Gtk.Snapshot snapshot) {
+            if (magnification == 1.0 && horizontal_offset == 0.0) {
+                base.snapshot (snapshot);
+                return;
+            }
+            float scale = (float) magnification;
+            var offset = Graphene.Point ();
+            offset.init ((float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
+                         get_height () * (1.0f - scale));
+            snapshot.save ();
+            snapshot.translate (offset);
+            snapshot.scale (scale, scale);
+            base.snapshot (snapshot);
+            snapshot.restore ();
+        }
+    }
+
+    private class WaveIconState : Object {
+        private Gtk.Widget widget;
+        public double center;
+        public double width;
+        public double scale;
+        public double layout_offset;
+
+        public WaveIconState (Gtk.Widget widget, double center, double width, double scale) {
+            this.widget = widget;
+            this.center = center;
+            this.width = width;
+            this.scale = scale;
+            this.layout_offset = 0.0;
+        }
+
+        public void set_visual_state (double scale, double offset) {
+            if (widget is DockIcon) ((DockIcon) widget).set_visual_state (scale, offset);
+            else ((GridWaveIcon) widget).set_visual_state (scale, offset);
+        }
+
+    }
+
     public class DockWindow : Gtk.Window {
 
         public signal void grid_requested ();
@@ -7,9 +62,12 @@ namespace XimperShellDock {
         private weak Application app;
         private Gdk.Monitor? monitor;
         private int niri_logical_monitor_width = 0;
+        private Gtk.Box wave_surface;
+        private Gtk.Box dock_content;
         private Gtk.Box main_box;
         private Gtk.Box icon_box;
         private Gtk.Box running_box;
+        private GridWaveIcon grid_wrapper;
         private Gtk.Button grid_button;
         private Gtk.Image grid_image;
         private bool autohide_enabled = false;
@@ -18,6 +76,12 @@ namespace XimperShellDock {
         private bool cursor_inside = false;
         private uint hide_timeout_id = 0;
         private uint watchdog_id = 0;
+        private uint magnification_tick_id = 0;
+        private int64 magnification_last_frame_time = 0;
+        private double wave_focus_x = 0.0;
+        private double wave_target_x = 0.0;
+        private double wave_strength = 0.0;
+        private double wave_target_strength = 0.0;
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
         private int64 leave_timestamp = 0;
@@ -37,6 +101,7 @@ namespace XimperShellDock {
         // Below this, the button's target becomes too small to use reliably.
         private const int MIN_ICON_SIZE = 16;
         private const int FLOATING_SIDE_MARGIN = 16;
+        private const double WAVE_ICON_GAP = 6.0;
 
         public DockWindow (Application app, Gdk.Monitor? monitor = null) {
             this.app = app;
@@ -65,10 +130,27 @@ namespace XimperShellDock {
             app.config.notify["icon-size"].connect (() => {
                 rebuild_dock ();
             });
+            app.config.notify["magnify-on-hover"].connect (() => {
+                if (!app.config.magnify_on_hover) reset_icon_magnification ();
+                update_icon_sizes_to_fit ();
+            });
+            app.config.notify["magnify-scale"].connect (() => {
+                update_icon_sizes_to_fit ();
+            });
+            app.config.notify["bounce-on-launch"].connect (() => {
+                update_box_bounce_setting (icon_box);
+                update_box_bounce_setting (running_box);
+                update_icon_sizes_to_fit ();
+            });
+            app.config.notify["bounce-duration"].connect (() => {
+                update_box_bounce_setting (icon_box);
+                update_box_bounce_setting (running_box);
+            });
 
             var motion = new Gtk.EventControllerMotion ();
             motion.leave.connect (() => {
                 cursor_inside = false;
+                reset_icon_magnification ();
                 leave_timestamp = GLib.get_monotonic_time () / 1000;
                 if (autohide_enabled && !popover_open && !dnd_active) {
                     schedule_hide ();
@@ -78,6 +160,9 @@ namespace XimperShellDock {
                 cursor_inside = true;
                 show_timestamp = GLib.get_monotonic_time () / 1000;
                 cancel_hide ();
+            });
+            motion.motion.connect ((x, y) => {
+                update_icon_magnification (x);
             });
             ((Gtk.Widget) this).add_controller (motion);
         }
@@ -89,6 +174,9 @@ namespace XimperShellDock {
         public void apply_mode () {
             GtkLayerShell.set_layer (this, LayerShellHelper.parse_layer (app.config.layer));
             LayerShellHelper.apply_dock_mode (this, app.config.dock_mode, DOCK_HEIGHT);
+            if (get_child () != null) {
+                dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
+            }
         }
 
         public void enable_autohide (bool enabled) {
@@ -196,7 +284,9 @@ namespace XimperShellDock {
                     // Find the AppEntry for this running app
                     var entry = find_entry_by_class (running.app_class);
                     if (entry != null) {
-                        var icon = new DockIcon (entry, app.config.icon_size, false);
+                        var icon = new DockIcon (entry, app.config.icon_size, false,
+                                                 app.config.bounce_on_launch,
+                                                 app.config.bounce_duration);
                         icon.set_running (true);
                         icon.set_focused (tracker.focused_class == running.app_class);
                         icon.pin_requested.connect ((id) => {
@@ -249,8 +339,7 @@ namespace XimperShellDock {
             main_box.valign = Gtk.Align.CENTER;
 
             // Grid button — same structure as DockIcon
-            var grid_wrapper = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
-            grid_wrapper.halign = Gtk.Align.CENTER;
+            grid_wrapper = new GridWaveIcon ();
 
             grid_button = new Gtk.Button ();
             grid_button.add_css_class ("dock-icon");
@@ -271,14 +360,28 @@ namespace XimperShellDock {
 
             // Pinned icons
             icon_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            icon_box.overflow = Gtk.Overflow.VISIBLE;
 
             // Running (not pinned) icons
             running_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            running_box.overflow = Gtk.Overflow.VISIBLE;
             running_box.visible = false;
 
             main_box.append (grid_wrapper);
             main_box.append (icon_box);
             main_box.append (running_box);
+
+            dock_content = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            dock_content.add_css_class ("dock-content");
+            dock_content.halign = Gtk.Align.CENTER;
+            dock_content.valign = Gtk.Align.END;
+            dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
+            dock_content.append (main_box);
+
+            wave_surface = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            wave_surface.halign = Gtk.Align.CENTER;
+            wave_surface.valign = Gtk.Align.END;
+            wave_surface.append (dock_content);
 
             // DropTarget on icon_box — reorder with animated spacer gap
             var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
@@ -316,7 +419,7 @@ namespace XimperShellDock {
             });
             main_box.add_controller (dock_drop);
 
-            set_child (main_box);
+            set_child (wave_surface);
 
             setup_dock_context_menu (main_box);
         }
@@ -325,16 +428,22 @@ namespace XimperShellDock {
             var gesture = new Gtk.GestureClick ();
             gesture.button = Gdk.BUTTON_SECONDARY;
             gesture.pressed.connect ((n, x, y) => {
-                show_dock_menu ();
+                show_dock_menu (target, x, y);
             });
             target.add_controller (gesture);
         }
 
-        private void show_dock_menu () {
+        private void show_dock_menu (Gtk.Widget target, double x, double y) {
             var popover = new Gtk.Popover ();
-            popover.set_parent (this);
+            popover.set_parent (target);
             popover.has_arrow = true;
             popover.autohide = true;
+            Gdk.Rectangle pointing_rect = Gdk.Rectangle ();
+            pointing_rect.x = (int) x;
+            pointing_rect.y = (int) y;
+            pointing_rect.width = 1;
+            pointing_rect.height = 1;
+            popover.set_pointing_to (pointing_rect);
 
             var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
             menu_box.margin_top = 4;
@@ -385,6 +494,10 @@ namespace XimperShellDock {
             int available_width = get_available_width ();
             if (available_width <= 0) return;
 
+            int initial_reserve = get_wave_horizontal_reserve ();
+            wave_surface.margin_start = initial_reserve;
+            wave_surface.margin_end = initial_reserve;
+
             int size = app.config.icon_size;
             int minimum = 0;
             int natural = 0;
@@ -393,24 +506,31 @@ namespace XimperShellDock {
             // paddings and Gtk.Box spacing in a width formula.
             while (size > MIN_ICON_SIZE) {
                 set_effective_icon_size (size);
-                main_box.measure (Gtk.Orientation.HORIZONTAL, -1,
+                dock_content.measure (Gtk.Orientation.HORIZONTAL, -1,
                                   out minimum, out natural, null, null);
                 if (natural <= available_width) break;
                 size--;
             }
 
             set_effective_icon_size (size);
-            main_box.measure (Gtk.Orientation.HORIZONTAL, -1,
+            dock_content.measure (Gtk.Orientation.HORIZONTAL, -1,
                               out minimum, out natural, null, null);
             if (natural > available_width) {
                 warning ("Dock contents exceed monitor width even at minimum icon size (%dpx)",
                          MIN_ICON_SIZE);
             }
-            int height = effective_icon_size + 12;
+            int height = get_dock_height ();
             if (DOCK_HEIGHT != height) {
                 DOCK_HEIGHT = height;
+                set_size_request (-1, DOCK_HEIGHT);
                 apply_mode ();
             }
+            if (wave_strength < 0.002) {
+                main_box.margin_start = 0;
+                main_box.margin_end = 0;
+            }
+            wave_surface.margin_start = get_wave_horizontal_reserve ();
+            wave_surface.margin_end = get_wave_horizontal_reserve ();
             queue_resize ();
         }
 
@@ -426,6 +546,31 @@ namespace XimperShellDock {
                 width -= FLOATING_SIDE_MARGIN * 2;
             }
             return width;
+        }
+
+        private int get_dock_height () {
+            int height = effective_icon_size + 12;
+
+            // The outer surface stays transparent; the visible dock-content
+            // remains at its normal height along the bottom edge.
+            if (app.config.magnify_on_hover) {
+                int icon_height = effective_icon_size + 15;
+                height += (icon_height * (app.config.magnify_scale - 100) + 99) / 100;
+            }
+            if (app.config.bounce_on_launch) {
+                height += (effective_icon_size * 55 + 99) / 100;
+            }
+            return height;
+        }
+
+        private int get_wave_horizontal_reserve () {
+            if (!app.config.magnify_on_hover || app.config.dock_mode != DockMode.FLOATING) {
+                return 0;
+            }
+            double growth = (app.config.magnify_scale - 100) / 100.0;
+            return (int) ((effective_icon_size + 15) * growth *
+                app.config.magnify_radius * 0.45 +
+                WAVE_ICON_GAP * app.config.magnify_radius * 0.6 + 0.5);
         }
 
         private void refresh_niri_logical_monitor_width () {
@@ -473,6 +618,158 @@ namespace XimperShellDock {
             }
         }
 
+        private void update_box_bounce_setting (Gtk.Box box) {
+            var child = box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) {
+                    ((DockIcon) child).update_bounce_settings (
+                        app.config.bounce_on_launch, app.config.bounce_duration
+                    );
+                }
+                child = child.get_next_sibling ();
+            }
+        }
+
+        private void update_icon_magnification (double cursor_x) {
+            if (!app.config.magnify_on_hover || dnd_active) return;
+            if (wave_strength < 0.002 && wave_target_strength == 0.0) {
+                wave_focus_x = cursor_x;
+            }
+            wave_target_x = cursor_x;
+            wave_target_strength = 1.0;
+            ensure_magnification_animation ();
+        }
+
+        private void collect_box_wave_items (Gtk.Box box, GenericArray<WaveIconState> icons) {
+            var child = box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) collect_wave_item (child, icons);
+                child = child.get_next_sibling ();
+            }
+        }
+
+        private void collect_wave_item (Gtk.Widget widget, GenericArray<WaveIconState> icons) {
+            Graphene.Rect bounds;
+            if (!widget.compute_bounds (this, out bounds)) return;
+            icons.add (new WaveIconState (
+                widget, bounds.origin.x + bounds.size.width / 2.0, bounds.size.width, 1.0
+            ));
+        }
+
+        private void apply_wave_layout () {
+            int radius = (int) (effective_icon_size * app.config.magnify_radius);
+            var icons = new GenericArray<WaveIconState> ();
+            collect_wave_item (grid_wrapper, icons);
+            collect_box_wave_items (icon_box, icons);
+            collect_box_wave_items (running_box, icons);
+
+            for (uint i = 0; i < icons.length; i++) {
+                double distance = (icons[i].center - wave_focus_x).abs ();
+                double t = (distance / radius).clamp (0.0, 1.0);
+                double smoothstep = t * t * (3.0 - 2.0 * t);
+                icons[i].scale = 1.0 +
+                    ((app.config.magnify_scale - 100) / 100.0) * wave_strength *
+                    (1.0 - smoothstep);
+            }
+
+            if (icons.length == 0) return;
+
+            // Integrate the extra width from left to right. Unlike anchoring
+            // to the nearest icon, this mapping is continuous as the cursor
+            // crosses from one icon to the next.
+            double accumulated_width = 0.0;
+            double maximum_growth = (app.config.magnify_scale - 100) / 100.0;
+            for (uint i = 0; i < icons.length; i++) {
+                double growth = icons[i].scale - 1.0;
+                // Leave real space between scaled snapshots. Without it the
+                // geometry merely touches, but anti-aliased corners and
+                // shadows still make neighbouring icons appear to overlap.
+                double clearance = maximum_growth > 0.0
+                    ? WAVE_ICON_GAP * growth / maximum_growth
+                    : 0.0;
+                double extra_width = icons[i].width * growth + clearance;
+                icons[i].layout_offset = accumulated_width + extra_width / 2.0;
+                accumulated_width += extra_width;
+            }
+
+            double focus_offset = icons[0].layout_offset;
+            if (wave_focus_x >= icons[icons.length - 1].center) {
+                focus_offset = icons[icons.length - 1].layout_offset;
+            } else {
+                for (uint i = 1; i < icons.length; i++) {
+                    if (wave_focus_x > icons[i].center) continue;
+                    double span = icons[i].center - icons[i - 1].center;
+                    double progress = span > 0.0
+                        ? ((wave_focus_x - icons[i - 1].center) / span).clamp (0.0, 1.0)
+                        : 0.0;
+                    focus_offset = icons[i - 1].layout_offset +
+                        (icons[i].layout_offset - icons[i - 1].layout_offset) * progress;
+                    break;
+                }
+            }
+
+            double base_left = double.MAX;
+            double base_right = -double.MAX;
+            double visual_left = double.MAX;
+            double visual_right = -double.MAX;
+            for (uint i = 0; i < icons.length; i++) {
+                icons[i].set_visual_state (
+                    icons[i].scale, icons[i].layout_offset - focus_offset
+                );
+                base_left = double.min (base_left, icons[i].center - icons[i].width / 2.0);
+                base_right = double.max (base_right, icons[i].center + icons[i].width / 2.0);
+                visual_left = double.min (visual_left,
+                    icons[i].center - icons[i].width * icons[i].scale / 2.0 +
+                    icons[i].layout_offset - focus_offset);
+                visual_right = double.max (visual_right,
+                    icons[i].center + icons[i].width * icons[i].scale / 2.0 +
+                    icons[i].layout_offset - focus_offset);
+            }
+
+            int needed_start = (int) (double.max (base_left - visual_left, 0.0) + 1.0);
+            int needed_end = (int) (double.max (visual_right - base_right, 0.0) + 1.0);
+            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end) {
+                main_box.margin_start = needed_start;
+                main_box.margin_end = needed_end;
+                queue_resize ();
+            }
+        }
+
+        private void reset_icon_magnification () {
+            wave_target_strength = 0.0;
+            ensure_magnification_animation ();
+        }
+
+        private void ensure_magnification_animation () {
+            if (magnification_tick_id != 0) return;
+            magnification_last_frame_time = 0;
+            magnification_tick_id = add_tick_callback ((widget, frame_clock) => {
+                int64 frame_time = frame_clock.get_frame_time ();
+                if (magnification_last_frame_time == 0) {
+                    magnification_last_frame_time = frame_time;
+                    return Source.CONTINUE;
+                }
+
+                double elapsed = (frame_time - magnification_last_frame_time) / 1000000.0;
+                magnification_last_frame_time = frame_time;
+                double normalized_elapsed = elapsed * 1000.0 / app.config.magnify_animation_duration;
+                double progress = (normalized_elapsed * 2.0).clamp (0.0, 1.0);
+                wave_focus_x += (wave_target_x - wave_focus_x) * progress;
+                wave_strength += (wave_target_strength - wave_strength) * progress;
+                apply_wave_layout ();
+                if ((wave_target_x - wave_focus_x).abs () < 0.25 &&
+                    (wave_target_strength - wave_strength).abs () < 0.002) {
+                    wave_focus_x = wave_target_x;
+                    wave_strength = wave_target_strength;
+                    apply_wave_layout ();
+                    magnification_tick_id = 0;
+                    return Source.REMOVE;
+                }
+                return Source.CONTINUE;
+            });
+        }
+
+
         private void populate_icons () {
             var child = icon_box.get_first_child ();
             while (child != null) {
@@ -490,7 +787,9 @@ namespace XimperShellDock {
             for (uint i = 0; i < pinned.length; i++) {
                 var entry = app.app_provider.find_by_desktop_id (pinned[i]);
                 if (entry != null) {
-                    var icon = new DockIcon (entry, app.config.icon_size);
+                    var icon = new DockIcon (entry, app.config.icon_size, true,
+                                             app.config.bounce_on_launch,
+                                             app.config.bounce_duration);
                     icon.unpin_requested.connect ((id) => {
                         unpin_app (id);
                     });
@@ -508,6 +807,7 @@ namespace XimperShellDock {
                     icon.drag_state_changed.connect ((active) => {
                         dnd_active = active;
                         if (active) {
+                            reset_icon_magnification ();
                             begin_icon_drag (icon);
                         } else {
                             end_icon_drag ();

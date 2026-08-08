@@ -8,12 +8,22 @@ namespace XimperShellDock {
         private Gtk.Image image;
         private Gtk.Box indicator_box;
         private Gtk.Button button;
+        private int icon_size;
         private bool _is_running = false;
         private bool _is_focused = false;
+        private double magnification = 1.0;
+        private double horizontal_offset = 0.0;
+        private double vertical_bounce_offset = 0.0;
+        private Adw.TimedAnimation? bounce_animation;
+        private int bounce_step = 0;
+        private bool bouncing_for_launch = false;
+        private bool launch_window_detected = false;
 
         private static Gtk.Popover? active_popover = null;
 
         public bool is_pinned { get; private set; }
+        public bool bounce_on_launch { get; set; default = false; }
+        public int bounce_duration { get; set; default = 200; }
 
         public signal void unpin_requested (string desktop_id);
         public signal void pin_requested (string desktop_id);
@@ -22,11 +32,15 @@ namespace XimperShellDock {
         public signal void popover_state_changed (bool open);
         public signal void drag_state_changed (bool active);
 
-        public DockIcon (AppEntry entry, int icon_size, bool pinned = true) {
+        public DockIcon (AppEntry entry, int icon_size, bool pinned = true,
+                         bool bounce_on_launch = false, int bounce_duration = 200) {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
             this.app_entry = entry;
             this.desktop_id = entry.desktop_id;
             this.is_pinned = pinned;
+            this.icon_size = icon_size;
+            this.bounce_on_launch = bounce_on_launch;
+            this.bounce_duration = bounce_duration;
 
             halign = Gtk.Align.CENTER;
 
@@ -49,6 +63,7 @@ namespace XimperShellDock {
                 if (_is_running) {
                     focus_requested (desktop_id);
                 } else {
+                    if (bounce_on_launch) play_launch_bounce ();
                     entry.launch ();
                 }
             });
@@ -75,6 +90,7 @@ namespace XimperShellDock {
         public void set_running (bool running) {
             if (_is_running == running) return;
             _is_running = running;
+            if (running) finish_launch_bounce ();
             indicator_box.visible = running;
         }
 
@@ -89,7 +105,104 @@ namespace XimperShellDock {
         }
 
         public void update_icon_size (int size) {
+            icon_size = size;
             image.pixel_size = size;
+        }
+
+        public void set_visual_state (double scale, double offset) {
+            if (magnification == scale && horizontal_offset == offset) return;
+            magnification = scale;
+            horizontal_offset = offset;
+            queue_draw ();
+        }
+
+        public void update_bounce_settings (bool enabled, int duration) {
+            bounce_on_launch = enabled;
+            bounce_duration = duration;
+            if (!enabled) stop_launch_bounce ();
+        }
+
+        private void play_launch_bounce () {
+            if (bounce_animation != null) {
+                bounce_animation.pause ();
+                bounce_animation = null;
+            }
+            bouncing_for_launch = true;
+            launch_window_detected = false;
+            bounce_step = 0;
+            play_next_bounce_step ();
+        }
+
+        private void play_next_bounce_step () {
+            bool moving_up = bounce_step % 2 == 0;
+            double bounce_height = icon_size * 0.55;
+            if (bounce_height < 14.0) bounce_height = 14.0;
+            double target_offset = moving_up ? -bounce_height : 0.0;
+            uint duration;
+            if (launch_window_detected) {
+                duration = moving_up ? (uint) (bounce_duration * 7 / 10)
+                                     : (uint) (bounce_duration * 9 / 10);
+            } else {
+                duration = moving_up ? (uint) bounce_duration : (uint) (bounce_duration * 13 / 10);
+            }
+            var target = new Adw.CallbackAnimationTarget ((value) => {
+                vertical_bounce_offset = value;
+                queue_draw ();
+            });
+            bounce_animation = new Adw.TimedAnimation (
+                this, vertical_bounce_offset, target_offset, duration, target
+            );
+            bounce_animation.easing = moving_up
+                ? Adw.Easing.EASE_OUT_CUBIC
+                : Adw.Easing.EASE_IN_CUBIC;
+            bounce_animation.done.connect (() => {
+                bounce_step++;
+                bool just_finished_down = bounce_step % 2 == 0;
+                if (bouncing_for_launch && !(launch_window_detected && just_finished_down)) {
+                    Idle.add (() => {
+                        play_next_bounce_step ();
+                        return Source.REMOVE;
+                    });
+                } else {
+                    stop_launch_bounce ();
+                }
+            });
+            bounce_animation.play ();
+        }
+
+        private void stop_launch_bounce () {
+            bouncing_for_launch = false;
+            if (bounce_animation != null) {
+                bounce_animation.pause ();
+                bounce_animation = null;
+            }
+            vertical_bounce_offset = 0.0;
+            queue_draw ();
+        }
+
+        private void finish_launch_bounce () {
+            if (!bouncing_for_launch) return;
+            launch_window_detected = true;
+        }
+
+        protected override void snapshot (Gtk.Snapshot snapshot) {
+            if (magnification == 1.0 && horizontal_offset == 0.0) {
+                base.snapshot (snapshot);
+                return;
+            }
+
+            float scale = (float) magnification;
+            var offset = Graphene.Point ();
+            offset.init (
+                (float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
+                get_height () * (1.0f - scale) + (float) vertical_bounce_offset
+            );
+
+            snapshot.save ();
+            snapshot.translate (offset);
+            snapshot.scale (scale, scale);
+            base.snapshot (snapshot);
+            snapshot.restore ();
         }
 
         private void setup_dnd () {

@@ -19,6 +19,12 @@ namespace XimperShellDock {
 
         public DockMode dock_mode { get; set; default = DockMode.FLOATING; }
         public bool autohide { get; set; default = false; }
+        public bool magnify_on_hover { get; set; default = false; }
+        public bool bounce_on_launch { get; set; default = false; }
+        public int bounce_duration { get; set; default = 200; }
+        public int magnify_scale { get; set; default = 135; }
+        public double magnify_radius { get; set; default = 2.0; }
+        public int magnify_animation_duration { get; set; default = 120; }
         public int icon_size { get; set; default = 48; }
         public int layer { get; set; default = 2; }
         public string launcher_fallback { get; set; default = "wofi --show drun"; }
@@ -50,6 +56,18 @@ namespace XimperShellDock {
                     dock_mode = DockMode.from_string (root.get_string_member ("mode"));
                 if (root.has_member ("autohide"))
                     autohide = root.get_boolean_member ("autohide");
+                if (root.has_member ("magnify_on_hover"))
+                    magnify_on_hover = root.get_boolean_member ("magnify_on_hover");
+                if (root.has_member ("bounce_on_launch"))
+                    bounce_on_launch = root.get_boolean_member ("bounce_on_launch");
+                if (root.has_member ("bounce_duration"))
+                    bounce_duration = (int) root.get_int_member ("bounce_duration");
+                if (root.has_member ("magnify_scale"))
+                    magnify_scale = (int) root.get_int_member ("magnify_scale");
+                if (root.has_member ("magnify_radius"))
+                    magnify_radius = root.get_double_member ("magnify_radius");
+                if (root.has_member ("magnify_animation_duration"))
+                    magnify_animation_duration = (int) root.get_int_member ("magnify_animation_duration");
                 if (root.has_member ("icon_size"))
                     icon_size = (int) root.get_int_member ("icon_size");
                 if (root.has_member ("layer"))
@@ -79,6 +97,18 @@ namespace XimperShellDock {
             builder.add_string_value (dock_mode.to_string ());
             builder.set_member_name ("autohide");
             builder.add_boolean_value (autohide);
+            builder.set_member_name ("magnify_on_hover");
+            builder.add_boolean_value (magnify_on_hover);
+            builder.set_member_name ("bounce_on_launch");
+            builder.add_boolean_value (bounce_on_launch);
+            builder.set_member_name ("bounce_duration");
+            builder.add_int_value (bounce_duration);
+            builder.set_member_name ("magnify_scale");
+            builder.add_int_value (magnify_scale);
+            builder.set_member_name ("magnify_radius");
+            builder.add_double_value (magnify_radius);
+            builder.set_member_name ("magnify_animation_duration");
+            builder.add_int_value (magnify_animation_duration);
             builder.set_member_name ("icon_size");
             builder.add_int_value (icon_size);
             builder.set_member_name ("layer");

@@ -1,15 +1,20 @@
 /* Dock */
 .dock-window {
+    background: transparent;
+    padding: 0;
+}
+
+.dock-content {
     background: @headerbar_bg_color;
     padding: 2px 6px;
 }
 
-.dock-window.floating {
+.dock-window.floating .dock-content {
     border-radius: 14px;
     box-shadow: 0 1px 3px @headerbar_shade_color;
 }
 
-.dock-window.pinned {
+.dock-window.pinned .dock-content {
     border-radius: 0;
     box-shadow: 0 -1px 0 @headerbar_shade_color;
 }
