@@ -5,9 +5,13 @@ namespace XimperShellDock {
         public signal void grid_requested ();
 
         private weak Application app;
+        private Gdk.Monitor? monitor;
+        private int niri_logical_monitor_width = 0;
+        private Gtk.Box main_box;
         private Gtk.Box icon_box;
         private Gtk.Box running_box;
         private Gtk.Button grid_button;
+        private Gtk.Image grid_image;
         private bool autohide_enabled = false;
         private bool popover_open = false;
         private bool dnd_active = false;
@@ -27,20 +31,31 @@ namespace XimperShellDock {
         private Adw.TimedAnimation? gap_shrink_anim = null;
 
         private int DOCK_HEIGHT = 64;
+        private int effective_icon_size = 48;
         private const int HIDE_DELAY_MS = 300;
         private const int SHOW_GRACE_MS = 600;
+        // Below this, the button's target becomes too small to use reliably.
+        private const int MIN_ICON_SIZE = 16;
+        private const int FLOATING_SIDE_MARGIN = 16;
 
         public DockWindow (Application app, Gdk.Monitor? monitor = null) {
             this.app = app;
+            this.monitor = monitor;
+            refresh_niri_logical_monitor_width ();
             this.title = "Ximper Shell Dock";
             this.decorated = false;
 
             add_css_class ("dock-window");
             DOCK_HEIGHT = app.config.icon_size + 12;
+            effective_icon_size = app.config.icon_size;
 
             LayerShellHelper.setup_dock_floating (this, 8, LayerShellHelper.parse_layer (app.config.layer));
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
+                monitor.notify["geometry"].connect (() => {
+                    refresh_niri_logical_monitor_width ();
+                    update_icon_sizes_to_fit ();
+                });
             }
             apply_mode ();
 
@@ -206,6 +221,7 @@ namespace XimperShellDock {
             // Show/hide separator
             bool has_running = running_box.get_first_child () != null;
             running_box.visible = has_running;
+            update_icon_sizes_to_fit ();
             queue_resize ();
         }
 
@@ -228,6 +244,7 @@ namespace XimperShellDock {
 
         private void build_ui () {
             var main_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            this.main_box = main_box;
             main_box.halign = Gtk.Align.CENTER;
             main_box.valign = Gtk.Align.CENTER;
 
@@ -238,7 +255,7 @@ namespace XimperShellDock {
             grid_button = new Gtk.Button ();
             grid_button.add_css_class ("dock-icon");
             grid_button.add_css_class ("flat");
-            var grid_image = new Gtk.Image.from_icon_name ("view-app-grid-symbolic");
+            grid_image = new Gtk.Image.from_icon_name ("view-app-grid-symbolic");
             grid_image.pixel_size = app.config.icon_size;
             grid_button.set_child (grid_image);
             grid_button.tooltip_text = "Applications";
@@ -355,15 +372,105 @@ namespace XimperShellDock {
 
         public void rebuild_dock () {
             DOCK_HEIGHT = app.config.icon_size + 12;
-
-            var grid_img = (Gtk.Image) grid_button.get_child ();
-            if (grid_img != null) {
-                grid_img.pixel_size = app.config.icon_size;
-            }
             populate_icons ();
             update_indicators ();
             apply_mode ();
             queue_resize ();
+        }
+
+        // The configured size is an upper bound.  Floating layer-shell
+        // surfaces are sized from their natural width, so GTK cannot shrink
+        // this box for us when it grows wider than its monitor.
+        private void update_icon_sizes_to_fit () {
+            int available_width = get_available_width ();
+            if (available_width <= 0) return;
+
+            int size = app.config.icon_size;
+            int minimum = 0;
+            int natural = 0;
+
+            // Measure after every candidate size instead of duplicating CSS
+            // paddings and Gtk.Box spacing in a width formula.
+            while (size > MIN_ICON_SIZE) {
+                set_effective_icon_size (size);
+                main_box.measure (Gtk.Orientation.HORIZONTAL, -1,
+                                  out minimum, out natural, null, null);
+                if (natural <= available_width) break;
+                size--;
+            }
+
+            set_effective_icon_size (size);
+            main_box.measure (Gtk.Orientation.HORIZONTAL, -1,
+                              out minimum, out natural, null, null);
+            if (natural > available_width) {
+                warning ("Dock contents exceed monitor width even at minimum icon size (%dpx)",
+                         MIN_ICON_SIZE);
+            }
+            int height = effective_icon_size + 12;
+            if (DOCK_HEIGHT != height) {
+                DOCK_HEIGHT = height;
+                apply_mode ();
+            }
+            queue_resize ();
+        }
+
+        private int get_available_width () {
+            if (monitor == null) return 0;
+            // GDK's Wayland monitor geometry may expose the pre-transform
+            // mode width. Niri reports the actual logical output size, which
+            // matters for portrait displays.
+            int width = niri_logical_monitor_width > 0
+                ? niri_logical_monitor_width
+                : monitor.geometry.width;
+            if (app.config.dock_mode == DockMode.FLOATING) {
+                width -= FLOATING_SIDE_MARGIN * 2;
+            }
+            return width;
+        }
+
+        private void refresh_niri_logical_monitor_width () {
+            niri_logical_monitor_width = 0;
+            if (monitor == null || !NiriHelper.is_available ()) return;
+
+            try {
+                string stdout_buf;
+                int exit_status;
+                Process.spawn_command_line_sync (
+                    "niri msg --json outputs", out stdout_buf, null, out exit_status
+                );
+                if (exit_status != 0 || stdout_buf == null || stdout_buf.length == 0) return;
+
+                var parser = new Json.Parser ();
+                parser.load_from_data (stdout_buf);
+                var outputs = parser.get_root ().get_object ();
+                var output = outputs.get_object_member (monitor.connector);
+                if (output == null || !output.has_member ("logical")) return;
+
+                var logical = output.get_object_member ("logical");
+                if (logical != null && logical.has_member ("width")) {
+                    niri_logical_monitor_width = (int) logical.get_int_member ("width");
+                }
+            } catch (Error e) {
+                // Fall back to the GDK geometry when Niri is unavailable.
+            }
+        }
+
+        private void set_effective_icon_size (int size) {
+            if (effective_icon_size == size) return;
+            effective_icon_size = size;
+            grid_image.pixel_size = size;
+            update_box_icon_sizes (icon_box, size);
+            update_box_icon_sizes (running_box, size);
+        }
+
+        private void update_box_icon_sizes (Gtk.Box box, int size) {
+            var child = box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) {
+                    ((DockIcon) child).update_icon_size (size);
+                }
+                child = child.get_next_sibling ();
+            }
         }
 
         private void populate_icons () {
@@ -409,12 +516,13 @@ namespace XimperShellDock {
                     icon_box.append (icon);
                 }
             }
+            update_icon_sizes_to_fit ();
         }
 
         // ── DnD gap management ──────────────────────────────────
 
         private int get_spacer_width () {
-            return app.config.icon_size + 8;
+            return effective_icon_size + 8;
         }
 
         // Called when an icon drag begins. Hides the source and
