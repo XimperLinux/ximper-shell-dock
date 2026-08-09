@@ -10,6 +10,7 @@ namespace XimperShellDock {
         }
 
         public string[] get_pinned_apps () throws DBusError, IOError {
+            app.config.sync_pinned_apps ();
             var pinned = app.config.pinned_apps;
             if (pinned == null || pinned.length == 0) {
                 return {};
@@ -22,12 +23,7 @@ namespace XimperShellDock {
         }
 
         public bool is_pinned (string desktop_id) throws DBusError, IOError {
-            var pinned = app.config.pinned_apps;
-            if (pinned == null) return false;
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] == desktop_id) return true;
-            }
-            return false;
+            return app.config.has_dock_item (ConfigManager.app_item (desktop_id));
         }
 
         public void pin (string desktop_id) throws DBusError, IOError {

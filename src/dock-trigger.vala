@@ -50,6 +50,24 @@ namespace XimperShellDock {
             });
             ((Gtk.Widget) hotspot).add_controller (click);
 
+            // Pointer motion alone is not delivered while a file-manager
+            // drag is in progress. Accept directory drags on the edge
+            // hotspot so the autohidden dock opens before the actual drop.
+            var file_drag = new Gtk.DropTarget (typeof (Gdk.FileList), Gdk.DragAction.COPY);
+            file_drag.motion.connect ((x, y) => {
+                cursor_on_trigger = true;
+                trigger_activated ();
+                return Gdk.DragAction.COPY;
+            });
+            file_drag.leave.connect (() => {
+                cursor_on_trigger = false;
+            });
+            file_drag.drop.connect ((value, x, y) => {
+                // The dock surface receives the final drop after it is shown.
+                return false;
+            });
+            ((Gtk.Widget) hotspot).add_controller (file_drag);
+
             set_child (hotspot);
         }
     }

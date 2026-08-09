@@ -50,6 +50,7 @@ namespace XimperShellDock {
 
         public void set_visual_state (double scale, double offset) {
             if (widget is DockIcon) ((DockIcon) widget).set_visual_state (scale, offset);
+            else if (widget is FolderDockIcon) ((FolderDockIcon) widget).set_visual_state (scale, offset);
             else ((GridWaveIcon) widget).set_visual_state (scale, offset);
         }
 
@@ -67,6 +68,8 @@ namespace XimperShellDock {
         private Gtk.Box main_box;
         private Gtk.Box icon_box;
         private Gtk.Box running_box;
+        private Gtk.Separator folder_separator;
+        private Gtk.Box folder_box;
         private GridWaveIcon grid_wrapper;
         private Gtk.Button grid_button;
         private Gtk.Image grid_image;
@@ -87,7 +90,7 @@ namespace XimperShellDock {
         private int64 leave_timestamp = 0;
 
         // DnD spacer-based gap animation
-        private weak DockIcon? drag_source_icon = null;
+        private weak Gtk.Widget? drag_source_item = null;
         private int drop_gap_index = -1;
         private Gtk.Widget? gap_spacer = null;
         private Gtk.Widget? gap_spacer_old = null;
@@ -367,9 +370,19 @@ namespace XimperShellDock {
             running_box.overflow = Gtk.Overflow.VISIBLE;
             running_box.visible = false;
 
+            folder_separator = new Gtk.Separator (Gtk.Orientation.VERTICAL);
+            folder_separator.add_css_class ("dock-separator");
+            folder_separator.visible = false;
+
+            folder_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            folder_box.overflow = Gtk.Overflow.VISIBLE;
+            folder_box.visible = false;
+
             main_box.append (grid_wrapper);
             main_box.append (icon_box);
             main_box.append (running_box);
+            main_box.append (folder_separator);
+            main_box.append (folder_box);
 
             dock_content = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             dock_content.add_css_class ("dock-content");
@@ -386,13 +399,21 @@ namespace XimperShellDock {
             // DropTarget on icon_box — reorder with animated spacer gap
             var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             icon_drop.motion.connect ((x, y) => {
+                // File managers commonly offer a directory both as a
+                // Gdk.FileList and as text/uri-list.  Without this guard GTK
+                // selects our legacy string target while hovering an app icon,
+                // so the reorder spacer reacts to a folder drag.
+                if (drop_contains_file_list (icon_drop)) {
+                    remove_all_spacers ();
+                    return (Gdk.DragAction) 0;
+                }
                 int idx = compute_insert_index (x);
                 move_gap_to (idx);
                 return Gdk.DragAction.MOVE;
             });
             icon_drop.leave.connect (() => {
                 // Return spacer to source position if dragging from dock
-                if (drag_source_icon != null) {
+                if (drag_source_item != null) {
                     int src_idx = get_source_visual_index ();
                     move_gap_to (src_idx);
                 } else {
@@ -400,28 +421,90 @@ namespace XimperShellDock {
                 }
             });
             icon_drop.drop.connect ((val, x, y) => {
+                if (drop_contains_file_list (icon_drop)) {
+                    remove_all_spacers ();
+                    return false;
+                }
                 var source_id = (string) val;
-                if (source_id == null || source_id.has_prefix ("folder:")) return false;
+                if (source_id == null || ConfigManager.is_folder_item (source_id) ||
+                    !is_known_app_drop (source_id)) return false;
                 int idx = compute_insert_index (x);
                 remove_all_spacers ();
-                reorder_pinned_at (source_id, idx);
+                reorder_dock_item_at (normalize_drop_item (source_id), idx);
                 return true;
             });
             icon_box.add_controller (icon_drop);
 
+            var folder_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            folder_drop.drop.connect ((val, x, y) => {
+                if (drop_contains_file_list (folder_drop)) return false;
+                var source_id = (string) val;
+                if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
+                var path = ConfigManager.item_folder_path (source_id);
+                if (!FileUtils.test (path, FileTest.IS_DIR)) return false;
+                app.config.add_folder (path);
+                app.config.save ();
+                populate_icons ();
+                return true;
+            });
+            folder_box.add_controller (folder_drop);
+
             // DropTarget on dock — accept apps dragged from grid or other sources
             var dock_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             dock_drop.drop.connect ((val, x, y) => {
+                if (drop_contains_file_list (dock_drop)) return false;
                 var source_id = (string) val;
-                if (source_id == null || source_id.has_prefix ("folder:")) return false;
-                pin_app (source_id);
+                if (source_id == null || !is_known_app_drop (source_id)) return false;
+                add_drop_item (normalize_drop_item (source_id));
                 return true;
             });
             main_box.add_controller (dock_drop);
 
+            // DnD does not bubble from a child DropTarget to its parent.
+            // Register the native file target on every visual zone, so users
+            // can drop a folder anywhere on the dock instead of hunting for
+            // an empty pixel between icons.
+            setup_file_drop_target (main_box);
+            setup_file_drop_target (grid_wrapper);
+            setup_file_drop_target (icon_box);
+            setup_file_drop_target (running_box);
+            setup_file_drop_target (folder_box);
+
             set_child (wave_surface);
 
             setup_dock_context_menu (main_box);
+        }
+
+        // Keep file-manager DnD separate from the string protocol used by
+        // DockIcon and Tile Menu.  A file list has to be handled exclusively
+        // by file_drop, never by an app reorder or pin target.
+        private bool drop_contains_file_list (Gtk.DropTarget target) {
+            var drop = target.get_current_drop ();
+            return drop != null &&
+                drop.get_formats ().contain_gtype (typeof (Gdk.FileList));
+        }
+
+        private void setup_file_drop_target (Gtk.Widget target) {
+            var file_drop = new Gtk.DropTarget (typeof (Gdk.FileList), Gdk.DragAction.COPY);
+            file_drop.drop.connect ((val, x, y) => {
+                var files = (Gdk.FileList) val;
+                foreach (var file in files.get_files ()) {
+                    if (file.query_file_type (FileQueryInfoFlags.NONE) == FileType.DIRECTORY) {
+                        add_folder_file (file);
+                        return true;
+                    }
+                }
+                return false;
+            });
+            target.add_controller (file_drop);
+        }
+
+        private bool is_known_app_drop (string source_id) {
+            if (ConfigManager.is_folder_item (source_id)) return false;
+            var desktop_id = ConfigManager.is_app_item (source_id)
+                ? ConfigManager.item_desktop_id (source_id) : source_id;
+            return desktop_id.length > 0 &&
+                app.app_provider.find_by_desktop_id (desktop_id) != null;
         }
 
         private void setup_dock_context_menu (Gtk.Widget target) {
@@ -460,6 +543,15 @@ namespace XimperShellDock {
             });
             menu_box.append (settings_btn);
 
+            var folder_btn = new Gtk.Button.with_label ("Add Folder…");
+            folder_btn.add_css_class ("flat");
+            folder_btn.halign = Gtk.Align.FILL;
+            folder_btn.clicked.connect (() => {
+                popover.popdown ();
+                choose_folder ();
+            });
+            menu_box.append (folder_btn);
+
             popover.set_child (menu_box);
             popover_open = true;
             cancel_hide ();
@@ -477,6 +569,70 @@ namespace XimperShellDock {
         private void open_settings () {
             var settings = new SettingsWindow (app);
             settings.present ();
+        }
+
+        private void choose_folder () {
+            // The native way is dragging a directory from the file manager.
+            // This is only a compact fallback for a pasted path.
+            var popover = new Gtk.Popover ();
+            popover.set_parent (main_box);
+            popover.has_arrow = true;
+            popover.position = Gtk.PositionType.TOP;
+
+            var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
+            box.margin_top = 10;
+            box.margin_bottom = 10;
+            box.margin_start = 10;
+            box.margin_end = 10;
+            var title = new Gtk.Label ("Add Folder to Dock");
+            title.add_css_class ("heading");
+            title.halign = Gtk.Align.START;
+            box.append (title);
+
+            var hint = new Gtk.Label ("Drag a folder from Files onto the Dock, or paste its path here.");
+            hint.wrap = true;
+            hint.max_width_chars = 36;
+            hint.add_css_class ("dim-label");
+            hint.halign = Gtk.Align.START;
+            box.append (hint);
+            var path_entry = new Gtk.Entry ();
+            path_entry.placeholder_text = "/home/user/Documents";
+            path_entry.width_chars = 34;
+            box.append (path_entry);
+
+            var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
+            actions.halign = Gtk.Align.END;
+            var cancel = new Gtk.Button.with_label ("Cancel");
+            cancel.add_css_class ("flat");
+            cancel.clicked.connect (() => { popover.popdown (); });
+            actions.append (cancel);
+            var add = new Gtk.Button.with_label ("Add Folder");
+            add.add_css_class ("suggested-action");
+            add.clicked.connect (() => {
+                if (path_entry.text.strip ().length == 0) return;
+                var folder = File.new_for_commandline_arg (path_entry.text.strip ());
+                if (folder.query_file_type (FileQueryInfoFlags.NONE) != FileType.DIRECTORY) return;
+                popover.popdown ();
+                add_folder_file (folder);
+            });
+            actions.append (add);
+            box.append (actions);
+
+            popover.set_child (box);
+            popover_open = true;
+            cancel_hide ();
+            popover.closed.connect (() => {
+                popover_open = false;
+                popover.unparent ();
+                if (autohide_enabled) schedule_hide ();
+            });
+            popover.popup ();
+        }
+
+        private void add_folder_file (File folder) {
+            var path = folder.get_path ();
+            if (path == null || !FileUtils.test (path, FileTest.IS_DIR)) return;
+            add_drop_item ("folder:" + path);
         }
 
         public void rebuild_dock () {
@@ -606,6 +762,7 @@ namespace XimperShellDock {
             grid_image.pixel_size = size;
             update_box_icon_sizes (icon_box, size);
             update_box_icon_sizes (running_box, size);
+            update_box_icon_sizes (folder_box, size);
         }
 
         private void update_box_icon_sizes (Gtk.Box box, int size) {
@@ -613,6 +770,8 @@ namespace XimperShellDock {
             while (child != null) {
                 if (child is DockIcon) {
                     ((DockIcon) child).update_icon_size (size);
+                } else if (child is FolderDockIcon) {
+                    ((FolderDockIcon) child).update_icon_size (size);
                 }
                 child = child.get_next_sibling ();
             }
@@ -643,9 +802,13 @@ namespace XimperShellDock {
         private void collect_box_wave_items (Gtk.Box box, GenericArray<WaveIconState> icons) {
             var child = box.get_first_child ();
             while (child != null) {
-                if (child is DockIcon) collect_wave_item (child, icons);
+                if (is_dock_item_widget (child)) collect_wave_item (child, icons);
                 child = child.get_next_sibling ();
             }
+        }
+
+        private bool is_dock_item_widget (Gtk.Widget widget) {
+            return widget is DockIcon || widget is FolderDockIcon;
         }
 
         private void collect_wave_item (Gtk.Widget widget, GenericArray<WaveIconState> icons) {
@@ -662,6 +825,7 @@ namespace XimperShellDock {
             collect_wave_item (grid_wrapper, icons);
             collect_box_wave_items (icon_box, icons);
             collect_box_wave_items (running_box, icons);
+            collect_box_wave_items (folder_box, icons);
 
             for (uint i = 0; i < icons.length; i++) {
                 double distance = (icons[i].center - wave_focus_x).abs ();
@@ -777,16 +941,24 @@ namespace XimperShellDock {
                 icon_box.remove (child);
                 child = next;
             }
+            child = folder_box.get_first_child ();
+            while (child != null) {
+                var next = child.get_next_sibling ();
+                folder_box.remove (child);
+                child = next;
+            }
             gap_spacer = null;
             gap_spacer_old = null;
             drop_gap_index = -1;
-            drag_source_icon = null;
+            drag_source_item = null;
 
-            var pinned = app.config.pinned_apps;
-            if (pinned == null) return;
-            for (uint i = 0; i < pinned.length; i++) {
-                var entry = app.app_provider.find_by_desktop_id (pinned[i]);
-                if (entry != null) {
+            var items = app.config.dock_items;
+            for (uint i = 0; i < items.length; i++) {
+                if (ConfigManager.is_app_item (items[i])) {
+                    var entry = app.app_provider.find_by_desktop_id (
+                        ConfigManager.item_desktop_id (items[i])
+                    );
+                    if (entry == null) continue;
                     var icon = new DockIcon (entry, app.config.icon_size, true,
                                              app.config.bounce_on_launch,
                                              app.config.bounce_duration);
@@ -808,7 +980,7 @@ namespace XimperShellDock {
                         dnd_active = active;
                         if (active) {
                             reset_icon_magnification ();
-                            begin_icon_drag (icon);
+                            begin_item_drag (icon);
                         } else {
                             end_icon_drag ();
                         }
@@ -816,6 +988,33 @@ namespace XimperShellDock {
                     icon_box.append (icon);
                 }
             }
+
+            var folders = app.config.dock_folders;
+            for (uint i = 0; i < folders.length; i++) {
+                var folder = new FolderDockIcon (folders[i], app.config.icon_size);
+                folder.remove_requested.connect ((folder_path) => {
+                    remove_folder (folder_path);
+                });
+                folder.settings_requested.connect ((folder_path) => {
+                    var config = app.config.find_folder (folder_path);
+                    if (config == null) return;
+                    var settings = new FolderSettingsWindow (app.config, config);
+                    settings.changed.connect (() => {
+                        populate_icons ();
+                        update_indicators ();
+                    });
+                    settings.present ();
+                });
+                folder.popover_state_changed.connect ((open) => {
+                    popover_open = open;
+                    if (open) cancel_hide ();
+                    else if (autohide_enabled) schedule_hide ();
+                });
+                folder_box.append (folder);
+            }
+            bool has_folders = folders.length > 0;
+            folder_box.visible = has_folders;
+            folder_separator.visible = has_folders;
             update_icon_sizes_to_fit ();
         }
 
@@ -828,20 +1027,20 @@ namespace XimperShellDock {
         // Called when an icon drag begins. Hides the source and
         // inserts a full-size spacer at its position so that
         // the total box width stays constant — no re-centering.
-        private void begin_icon_drag (DockIcon icon) {
-            drag_source_icon = icon;
+        private void begin_item_drag (Gtk.Widget item) {
+            drag_source_item = item;
             cancel_hide ();
 
             // Find visual index of the source before hiding
             int src_idx = 0;
             var child = icon_box.get_first_child ();
             while (child != null) {
-                if (child == icon) break;
-                if (child.visible && child is DockIcon) src_idx++;
+                if (child == item) break;
+                if (child.visible && is_dock_item_widget (child)) src_idx++;
                 child = child.get_next_sibling ();
             }
 
-            icon.visible = false;
+            item.visible = false;
 
             // Place spacer at source position (full width, no animation)
             int w = get_spacer_width ();
@@ -853,21 +1052,21 @@ namespace XimperShellDock {
         // Called when the drag ends (drop or cancel).
         private void end_icon_drag () {
             remove_all_spacers ();
-            if (drag_source_icon != null) {
-                drag_source_icon.visible = true;
+            if (drag_source_item != null) {
+                drag_source_item.visible = true;
             }
-            drag_source_icon = null;
+            drag_source_item = null;
         }
 
         // Get the visual index where the source icon was (among
         // visible DockIcons, excluding the hidden source).
         private int get_source_visual_index () {
-            if (drag_source_icon == null) return 0;
+            if (drag_source_item == null) return 0;
             int idx = 0;
             var child = icon_box.get_first_child ();
             while (child != null) {
-                if (child == drag_source_icon) return idx;
-                if (child is DockIcon && child.visible) idx++;
+                if (child == drag_source_item) return idx;
+                if (is_dock_item_widget (child) && child.visible) idx++;
                 child = child.get_next_sibling ();
             }
             return idx;
@@ -879,7 +1078,7 @@ namespace XimperShellDock {
             int index = 0;
             var child = icon_box.get_first_child ();
             while (child != null) {
-                if (child.visible && child is DockIcon) {
+                if (child.visible && is_dock_item_widget (child)) {
                     Graphene.Rect bounds;
                     if (child.compute_bounds (icon_box, out bounds)) {
                         double mid = bounds.origin.x + bounds.size.width / 2.0;
@@ -948,7 +1147,7 @@ namespace XimperShellDock {
             int vis = 0;
             var child = icon_box.get_first_child ();
             while (child != null) {
-                if (child.visible && child is DockIcon) {
+                if (child.visible && is_dock_item_widget (child)) {
                     if (vis == before_index) {
                         // insert_child_after(widget, null) prepends
                         var prev = child.get_prev_sibling ();
@@ -994,57 +1193,54 @@ namespace XimperShellDock {
             drop_gap_index = -1;
         }
 
-        // ── Pin / reorder / unpin ───────────────────────────────
+        // ── Dock item persistence ───────────────────────────────
 
         private void pin_app (string desktop_id) {
-            var pinned = app.config.pinned_apps;
-            if (pinned == null) {
-                pinned = new GenericArray<string> ();
+            add_drop_item (ConfigManager.app_item (desktop_id));
+        }
+
+        private string normalize_drop_item (string source_id) {
+            if (ConfigManager.is_folder_item (source_id)) return source_id;
+            if (ConfigManager.is_app_item (source_id)) return source_id;
+            return ConfigManager.app_item (source_id);
+        }
+
+        private void add_drop_item (string item) {
+            if (ConfigManager.is_folder_item (item)) {
+                var path = ConfigManager.item_folder_path (item);
+                if (!FileUtils.test (path, FileTest.IS_DIR)) return;
+                if (app.config.find_folder (path) != null) return;
+                app.config.add_folder (path);
+                app.config.save ();
+                populate_icons ();
+                update_indicators ();
+                return;
             }
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] == desktop_id) return;
-            }
-            pinned.add (desktop_id);
-            app.config.pinned_apps = pinned;
+            if (app.config.has_dock_item (item)) return;
+            app.config.add_dock_item (item);
             app.config.save ();
             populate_icons ();
             update_indicators ();
         }
 
-        private void reorder_pinned_at (string source_id, int insert_visual_index) {
-            var pinned = app.config.pinned_apps;
-            if (pinned == null) pinned = new GenericArray<string> ();
+        private void reorder_dock_item_at (string item, int insert_visual_index) {
+            if (ConfigManager.is_folder_item (item) &&
+                !FileUtils.test (ConfigManager.item_folder_path (item), FileTest.IS_DIR)) return;
+            app.config.reorder_dock_item (item, insert_visual_index);
+            app.config.save ();
+            populate_icons ();
+            update_indicators ();
+        }
 
-            // Remove source if already pinned
-            int src_idx = -1;
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] == source_id) { src_idx = (int) i; break; }
-            }
-            if (src_idx >= 0) {
-                pinned.remove_index (src_idx);
-            }
-
-            // Clamp and insert
-            int pos = insert_visual_index;
-            if (pos > (int) pinned.length) pos = (int) pinned.length;
-            pinned.insert (pos, source_id);
-
-            app.config.pinned_apps = pinned;
+        private void remove_folder (string folder_path) {
+            app.config.remove_folder (folder_path);
             app.config.save ();
             populate_icons ();
             update_indicators ();
         }
 
         private void unpin_app (string desktop_id) {
-            var new_pinned = new GenericArray<string> ();
-            var pinned = app.config.pinned_apps;
-            if (pinned == null) return;
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] != desktop_id) {
-                    new_pinned.add (pinned[i]);
-                }
-            }
-            app.config.pinned_apps = new_pinned;
+            app.config.remove_dock_item (ConfigManager.app_item (desktop_id));
             app.config.save ();
             populate_icons ();
         }

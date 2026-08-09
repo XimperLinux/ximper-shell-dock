@@ -58,3 +58,45 @@
 .tile-dragging {
     opacity: 0.4;
 }
+
+.dock-folder-item {
+    min-width: 76px;
+    min-height: 86px;
+    padding: 6px;
+    border-radius: 10px;
+}
+
+.dock-folder-item:hover {
+    background: alpha(@accent_bg_color, 0.16);
+}
+
+.dock-folder-list-item {
+    min-width: 300px;
+    min-height: 34px;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.dock-folder-grid {
+    /* Keep the first row clear of the scrolled viewport edge. */
+    margin: 6px 4px 4px;
+}
+
+.dock-folder-view {
+    /* Gtk.Popover already draws the Stack card. A second background here
+     * creates a visible double underlay. */
+    background: transparent;
+    border: none;
+}
+
+.dock-stack-preview {
+    background: alpha(@headerbar_bg_color, 0.92);
+    border: 1px solid alpha(@headerbar_shade_color, 0.65);
+    border-radius: 4px;
+    padding: 1px;
+    box-shadow: 0 1px 2px alpha(black, 0.35);
+}
+
+.dock-folder-thumbnail {
+    border-radius: 4px;
+}

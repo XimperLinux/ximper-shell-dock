@@ -152,15 +152,9 @@ namespace XimperShellDock {
         }
 
         public void pin_app (string desktop_id) {
-            var pinned = config.pinned_apps;
-            if (pinned == null) {
-                pinned = new GenericArray<string> ();
-            }
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] == desktop_id) return;
-            }
-            pinned.add (desktop_id);
-            config.pinned_apps = pinned;
+            var item = ConfigManager.app_item (desktop_id);
+            if (config.has_dock_item (item)) return;
+            config.add_dock_item (item);
             config.save ();
             for (uint i = 0; i < dock_windows.length; i++) {
                 dock_windows[i].rebuild_dock ();
@@ -168,15 +162,7 @@ namespace XimperShellDock {
         }
 
         public void unpin_app (string desktop_id) {
-            var new_pinned = new GenericArray<string> ();
-            var pinned = config.pinned_apps;
-            if (pinned == null) return;
-            for (uint i = 0; i < pinned.length; i++) {
-                if (pinned[i] != desktop_id) {
-                    new_pinned.add (pinned[i]);
-                }
-            }
-            config.pinned_apps = new_pinned;
+            config.remove_dock_item (ConfigManager.app_item (desktop_id));
             config.save ();
             for (uint i = 0; i < dock_windows.length; i++) {
                 dock_windows[i].rebuild_dock ();
