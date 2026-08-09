@@ -1,5 +1,7 @@
 # ximper-shell-dock
 
+![Dock demo](assets/dock-demo.gif)
+
 Dock panel.
 A component of the Ximper Shell.
 
