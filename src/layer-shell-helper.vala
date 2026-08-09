@@ -34,6 +34,8 @@ namespace XimperShellDock {
                 case DockMode.PINNED:
                     GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, true);
                     GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, true);
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.LEFT, 0);
+                    GtkLayerShell.set_margin (window, GtkLayerShell.Edge.RIGHT, 0);
                     GtkLayerShell.set_margin (window, GtkLayerShell.Edge.BOTTOM, 0);
                     GtkLayerShell.set_exclusive_zone (window, height);
                     window.remove_css_class ("floating");
@@ -41,8 +43,11 @@ namespace XimperShellDock {
                     break;
 
                 case DockMode.FLOATING:
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, false);
-                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, false);
+                    // Anchoring both sides lets DockWindow constrain the
+                    // layer surface with equal margins. Without anchors the
+                    // compositor is free to grow the surface from one edge.
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.LEFT, true);
+                    GtkLayerShell.set_anchor (window, GtkLayerShell.Edge.RIGHT, true);
                     GtkLayerShell.set_margin (window, GtkLayerShell.Edge.BOTTOM, 8);
                     GtkLayerShell.set_exclusive_zone (window, -1);
                     window.remove_css_class ("pinned");

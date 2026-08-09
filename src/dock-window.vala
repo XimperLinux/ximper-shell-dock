@@ -156,6 +156,10 @@ namespace XimperShellDock {
         private Gtk.Box trash_box;
         private DockItemGapController app_drag_gaps;
         private DockItemGapController folder_drag_gaps;
+        // The compositor reports focus changes much more often than the set
+        // of running applications changes. Keep this separate so focus does
+        // not recreate icons or make the dock choose an icon size again.
+        private string running_icons_signature = "";
         private GridWaveIcon grid_wrapper;
         private Gtk.Button grid_button;
         private Gtk.Image grid_image;
@@ -396,16 +400,12 @@ namespace XimperShellDock {
                 child = child.get_next_sibling ();
             }
 
-            // Show running-but-not-pinned apps
-            var running_child = running_box.get_first_child ();
-            while (running_child != null) {
-                var next = running_child.get_next_sibling ();
-                running_box.remove (running_child);
-                running_child = next;
-            }
-
+            // Build a stable description of the unpinned running entries.
+            // A focus-only event must not tear down and rebuild this box.
             var pinned = app.config.pinned_apps;
             var shown_classes = new GenericArray<string> ();
+            var desired_entries = new GenericArray<AppEntry> ();
+            var signature = new StringBuilder ();
 
             // Collect pinned classes
             if (pinned != null) {
@@ -414,8 +414,7 @@ namespace XimperShellDock {
                 }
             }
 
-            // Add running apps not in pinned
-            if (tracker.running_apps == null) return;
+            // Collect running apps not already represented by a pinned icon.
             for (uint i = 0; i < tracker.running_apps.length; i++) {
                 var running = tracker.running_apps[i];
                 bool already_shown = false;
@@ -440,38 +439,65 @@ namespace XimperShellDock {
 
                     shown_classes.add (running.app_class);
 
-                    // Find the AppEntry for this running app
                     var entry = find_entry_by_class (running.app_class);
                     if (entry != null) {
-                        var icon = new DockIcon (entry, app.config.icon_size, false,
-                                                 app.config.bounce_on_launch,
-                                                 app.config.bounce_duration);
-                        icon.set_running (true);
-                        icon.set_focused (tracker.focused_class == running.app_class);
-                        icon.pin_requested.connect ((id) => {
-                            pin_app (id);
-                        });
-                        icon.focus_requested.connect ((id) => {
-                            app.window_tracker.focus_window (id);
-                        });
-                        icon.close_requested.connect ((id) => {
-                            app.window_tracker.close_app (id);
-                        });
-                        icon.popover_state_changed.connect ((open) => {
-                            popover_open = open;
-                            if (open) cancel_hide ();
-                            else if (autohide_enabled) schedule_hide ();
-                        });
-                        running_box.append (icon);
+                        desired_entries.add (entry);
+                        signature.append (entry.desktop_id);
+                        signature.append_c ('\x1f');
                     }
                 }
             }
 
-            // Show/hide separator
-            bool has_running = running_box.get_first_child () != null;
-            running_box.visible = has_running;
-            update_icon_sizes_to_fit ();
-            queue_resize ();
+            if (signature.str != running_icons_signature) {
+                rebuild_running_icons (desired_entries);
+                running_icons_signature = signature.str;
+                update_icon_sizes_to_fit ();
+            } else {
+                update_running_icon_focus ();
+            }
+        }
+
+        private void rebuild_running_icons (GenericArray<AppEntry> entries) {
+            var child = running_box.get_first_child ();
+            while (child != null) {
+                var next = child.get_next_sibling ();
+                running_box.remove (child);
+                child = next;
+            }
+
+            for (uint i = 0; i < entries.length; i++) {
+                var icon = new DockIcon (entries[i], app.config.icon_size, false,
+                                         app.config.bounce_on_launch,
+                                         app.config.bounce_duration);
+                icon.set_running (true);
+                icon.set_focused (app.window_tracker.is_focused (icon.desktop_id));
+                icon.pin_requested.connect ((id) => { pin_app (id); });
+                icon.focus_requested.connect ((id) => {
+                    app.window_tracker.focus_window (id);
+                });
+                icon.close_requested.connect ((id) => {
+                    app.window_tracker.close_app (id);
+                });
+                icon.popover_state_changed.connect ((open) => {
+                    popover_open = open;
+                    if (open) cancel_hide ();
+                    else if (autohide_enabled) schedule_hide ();
+                });
+                running_box.append (icon);
+            }
+            running_box.visible = entries.length > 0;
+        }
+
+        private void update_running_icon_focus () {
+            var child = running_box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) {
+                    var icon = (DockIcon) child;
+                    icon.set_running (true);
+                    icon.set_focused (app.window_tracker.is_focused (icon.desktop_id));
+                }
+                child = child.get_next_sibling ();
+            }
         }
 
         private AppEntry? find_entry_by_class (string app_class) {
@@ -834,6 +860,7 @@ namespace XimperShellDock {
         public void rebuild_dock () {
             DOCK_HEIGHT = app.config.icon_size + 12;
             populate_icons ();
+            running_icons_signature = "";
             update_indicators ();
             apply_mode ();
             queue_resize ();
@@ -846,31 +873,49 @@ namespace XimperShellDock {
             int available_width = get_available_width ();
             if (available_width <= 0) return;
 
-            int initial_reserve = get_wave_horizontal_reserve ();
-            wave_surface.margin_start = initial_reserve;
-            wave_surface.margin_end = initial_reserve;
-
-            int size = app.config.icon_size;
+            int previous_size = effective_icon_size;
+            int previous_reserve = wave_surface.margin_start;
+            int previous_height = DOCK_HEIGHT;
             int minimum = 0;
             int natural = 0;
 
-            // Measure after every candidate size instead of duplicating CSS
-            // paddings and Gtk.Box spacing in a width formula.
-            while (size > MIN_ICON_SIZE) {
+            // Natural width grows monotonically with icon size. A binary
+            // search avoids resizing every child once for every pixel between
+            // the configured and minimum sizes when the dock is too narrow.
+            int low = MIN_ICON_SIZE;
+            int high = app.config.icon_size;
+            int size = MIN_ICON_SIZE;
+            int best = MIN_ICON_SIZE;
+            bool fits = false;
+            while (low <= high) {
+                size = low + (high - low) / 2;
                 set_effective_icon_size (size);
+                int reserve = get_wave_horizontal_reserve ();
+                wave_surface.margin_start = reserve;
+                wave_surface.margin_end = reserve;
                 wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
-                                  out minimum, out natural, null, null);
-                if (natural <= available_width) break;
-                size--;
+                                      out minimum, out natural, null, null);
+                if (natural <= available_width) {
+                    fits = true;
+                    best = size;
+                    low = size + 1;
+                } else {
+                    high = size - 1;
+                }
             }
 
+            size = fits ? best : MIN_ICON_SIZE;
             set_effective_icon_size (size);
+            int reserve = get_wave_horizontal_reserve ();
+            wave_surface.margin_start = reserve;
+            wave_surface.margin_end = reserve;
             wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
                               out minimum, out natural, null, null);
             if (natural > available_width) {
                 warning ("Dock contents exceed monitor width even at minimum icon size (%dpx)",
                          MIN_ICON_SIZE);
             }
+            center_floating_surface (natural);
             int height = get_dock_height ();
             if (DOCK_HEIGHT != height) {
                 DOCK_HEIGHT = height;
@@ -881,12 +926,22 @@ namespace XimperShellDock {
                 main_box.margin_start = 0;
                 main_box.margin_end = 0;
             }
-            wave_surface.margin_start = get_wave_horizontal_reserve ();
-            wave_surface.margin_end = get_wave_horizontal_reserve ();
-            queue_resize ();
+            if (effective_icon_size != previous_size ||
+                reserve != previous_reserve || DOCK_HEIGHT != previous_height) {
+                queue_resize ();
+            }
         }
 
         private int get_available_width () {
+            int width = get_monitor_width ();
+            if (width <= 0) return 0;
+            if (app.config.dock_mode == DockMode.FLOATING) {
+                width -= FLOATING_SIDE_MARGIN * 2;
+            }
+            return width;
+        }
+
+        private int get_monitor_width () {
             if (monitor == null) return 0;
             // GDK's Wayland monitor geometry may expose the pre-transform
             // mode width. Niri reports the actual logical output size, which
@@ -894,10 +949,19 @@ namespace XimperShellDock {
             int width = niri_logical_monitor_width > 0
                 ? niri_logical_monitor_width
                 : monitor.geometry.width;
-            if (app.config.dock_mode == DockMode.FLOATING) {
-                width -= FLOATING_SIDE_MARGIN * 2;
-            }
             return width;
+        }
+
+        // A floating layer surface with neither horizontal anchor is placed
+        // at compositor discretion. Keep both anchors and set equal margins
+        // so width changes stay centred on the selected monitor.
+        private void center_floating_surface (int content_width) {
+            if (app.config.dock_mode != DockMode.FLOATING) return;
+            int monitor_width = get_monitor_width ();
+            if (monitor_width <= 0) return;
+            int side_margin = int.max ((monitor_width - content_width) / 2, 0);
+            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, side_margin);
+            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.RIGHT, side_margin);
         }
 
         private int get_dock_height () {
@@ -920,9 +984,15 @@ namespace XimperShellDock {
                 return 0;
             }
             double growth = (app.config.magnify_scale - 100) / 100.0;
-            return (int) ((effective_icon_size + 15) * growth *
-                app.config.magnify_radius * 0.45 +
-                WAVE_ICON_GAP * app.config.magnify_radius * 0.6 + 0.5);
+            // A wave near an edge can push every affected icon to one side.
+            // Reserve the complete span up front: changing layout margins in
+            // response to the pointer changes the layer-surface width, which
+            // makes some compositors grow it from the right edge.
+            int affected_icons = (int) app.config.magnify_radius;
+            if ((double) affected_icons < app.config.magnify_radius) affected_icons++;
+            affected_icons++;
+            double per_icon_growth = (effective_icon_size + 24) * growth + WAVE_ICON_GAP;
+            return (int) (affected_icons * per_icon_growth + 0.5);
         }
 
         private void refresh_niri_logical_monitor_width () {
@@ -969,6 +1039,8 @@ namespace XimperShellDock {
                     ((DockIcon) child).update_icon_size (size);
                 } else if (child is FolderDockIcon) {
                     ((FolderDockIcon) child).update_icon_size (size);
+                } else if (child is TrashDockIcon) {
+                    ((TrashDockIcon) child).update_icon_size (size);
                 }
                 child = child.get_next_sibling ();
             }
@@ -1068,31 +1140,11 @@ namespace XimperShellDock {
                 }
             }
 
-            double base_left = double.MAX;
-            double base_right = -double.MAX;
-            double visual_left = double.MAX;
-            double visual_right = -double.MAX;
             for (uint i = 0; i < icons.length; i++) {
                 icons[i].set_visual_state (
                     icons[i].scale, icons[i].layout_offset - focus_offset
                 );
                 icons[i].visual_offset = icons[i].layout_offset - focus_offset;
-                base_left = double.min (base_left, icons[i].center - icons[i].width / 2.0);
-                base_right = double.max (base_right, icons[i].center + icons[i].width / 2.0);
-                visual_left = double.min (visual_left,
-                    icons[i].center - icons[i].width * icons[i].scale / 2.0 +
-                    icons[i].layout_offset - focus_offset);
-                visual_right = double.max (visual_right,
-                    icons[i].center + icons[i].width * icons[i].scale / 2.0 +
-                    icons[i].layout_offset - focus_offset);
-            }
-
-            int needed_start = (int) (double.max (base_left - visual_left, 0.0) + 1.0);
-            int needed_end = (int) (double.max (visual_right - base_right, 0.0) + 1.0);
-            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end) {
-                main_box.margin_start = needed_start;
-                main_box.margin_end = needed_end;
-                queue_resize ();
             }
             active_wave_icons = icons;
             update_magnified_hover (icons);

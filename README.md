@@ -11,12 +11,14 @@ Supports Hyprland and Niri through compositor helpers.
 
 - Floating and pinned layouts, with optional autohide.
 - Running and focused-app indicators; unpinned running applications are shown separately.
-- Hover magnification wave with configurable scale, neighbour reach, and response speed.
+- Hover magnification wave with configurable scale, neighbour reach, and response speed; clicks and drag-and-drop also work over the enlarged part of an icon.
 - Optional launch bounce that continues until the application window is detected.
 - Dock width adapts to the monitor: icons shrink only when the configured size cannot fit.
-- Reorder application icons by dragging them; drop an application from the tile menu to pin it.
+- Reorder application icons and Folder Stacks by dragging them; drop an application from the tile menu to pin it. Reorder feedback keeps a stable animated gap.
 - Add folders as Dock Stacks by dragging a directory from the file manager onto any part of the dock, or through the dock context menu.
   Stack contents open as a scrollable grid, list, or fan; file previews use the system thumbnail cache and items can be dragged into other applications.
+- Optional Trash at the end of the dock: open it with a click, move files there by dropping them, and empty it from its context menu. Its icon reflects whether Trash contains files.
+- Dock contents are kept in sync across all monitors as soon as applications or Folder Stacks are added, removed, or reordered.
 
 ## Build
 
@@ -48,6 +50,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 {
   "mode": "floating",
   "autohide": false,
+  "show_trash": false,
   "magnify_on_hover": false,
   "bounce_on_launch": false,
   "bounce_duration": 200,
@@ -72,6 +75,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 |-----|------|---------|-------------|
 | `mode` | string | `"floating"` | `"floating"` or `"pinned"` |
 | `autohide` | bool | `false` | Hide dock when not in use |
+| `show_trash` | bool | `false` | Show the system Trash after Folder Stacks at the end of the dock |
 | `magnify_on_hover` | bool | `false` | Enable the hover magnification wave |
 | `magnify_scale` | int | `135` | Maximum hovered icon size, as a percentage |
 | `magnify_radius` | float | `2.0` | Wave reach in icon widths on each side |
@@ -95,7 +99,11 @@ Each `dock_folders` entry has an absolute `path` and optional presentation setti
 | `view` | `"grid"`, `"list"`, `"fan"` | `"grid"` | Layout when the folder is opened |
 | `sort` | `"name"`, `"modified"`, `"kind"` | `"name"` | Item ordering |
 
-Use the folder's context menu to change these options or remove the Stack. Folders are kept in their own section on the right side of the dock.
+Use the folder's context menu to change these options or remove the Stack. Folders are kept in their own section on the right side of the dock. Drag a directory onto an existing Folder Stack to insert it immediately after that Stack.
+
+### Trash
+
+Enable `show_trash` in the settings window or configuration file to add the system Trash to the far end of the dock. Click it to open `trash:///`; drop files onto it to move them to Trash. The context menu provides **Empty Trash…** and asks for confirmation before permanently deleting its contents.
 
 ## D-Bus
 
