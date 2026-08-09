@@ -442,9 +442,7 @@ namespace XimperShellDock {
                 if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
                 var path = ConfigManager.item_folder_path (source_id);
                 if (!FileUtils.test (path, FileTest.IS_DIR)) return false;
-                app.config.add_folder (path);
-                app.config.save ();
-                populate_icons ();
+                app.add_dock_folder (path);
                 return true;
             });
             folder_box.add_controller (folder_drop);
@@ -1208,41 +1206,24 @@ namespace XimperShellDock {
         private void add_drop_item (string item) {
             if (ConfigManager.is_folder_item (item)) {
                 var path = ConfigManager.item_folder_path (item);
-                if (!FileUtils.test (path, FileTest.IS_DIR)) return;
-                if (app.config.find_folder (path) != null) return;
-                app.config.add_folder (path);
-                app.config.save ();
-                populate_icons ();
-                update_indicators ();
+                app.add_dock_folder (path);
                 return;
             }
-            if (app.config.has_dock_item (item)) return;
-            app.config.add_dock_item (item);
-            app.config.save ();
-            populate_icons ();
-            update_indicators ();
+            app.pin_app (ConfigManager.item_desktop_id (item));
         }
 
         private void reorder_dock_item_at (string item, int insert_visual_index) {
             if (ConfigManager.is_folder_item (item) &&
                 !FileUtils.test (ConfigManager.item_folder_path (item), FileTest.IS_DIR)) return;
-            app.config.reorder_dock_item (item, insert_visual_index);
-            app.config.save ();
-            populate_icons ();
-            update_indicators ();
+            app.reorder_dock_item (item, insert_visual_index);
         }
 
         private void remove_folder (string folder_path) {
-            app.config.remove_folder (folder_path);
-            app.config.save ();
-            populate_icons ();
-            update_indicators ();
+            app.remove_dock_folder (folder_path);
         }
 
         private void unpin_app (string desktop_id) {
-            app.config.remove_dock_item (ConfigManager.app_item (desktop_id));
-            app.config.save ();
-            populate_icons ();
+            app.unpin_app (desktop_id);
         }
 
         private void schedule_hide () {

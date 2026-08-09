@@ -156,14 +156,36 @@ namespace XimperShellDock {
             if (config.has_dock_item (item)) return;
             config.add_dock_item (item);
             config.save ();
-            for (uint i = 0; i < dock_windows.length; i++) {
-                dock_windows[i].rebuild_dock ();
-            }
+            rebuild_docks ();
         }
 
         public void unpin_app (string desktop_id) {
             config.remove_dock_item (ConfigManager.app_item (desktop_id));
             config.save ();
+            rebuild_docks ();
+        }
+
+        public void remove_dock_folder (string folder_path) {
+            config.remove_folder (folder_path);
+            config.save ();
+            rebuild_docks ();
+        }
+
+        public void add_dock_folder (string folder_path) {
+            if (!FileUtils.test (folder_path, FileTest.IS_DIR) ||
+                config.find_folder (folder_path) != null) return;
+            config.add_folder (folder_path);
+            config.save ();
+            rebuild_docks ();
+        }
+
+        public void reorder_dock_item (string item, int position) {
+            config.reorder_dock_item (item, position);
+            config.save ();
+            rebuild_docks ();
+        }
+
+        private void rebuild_docks () {
             for (uint i = 0; i < dock_windows.length; i++) {
                 dock_windows[i].rebuild_dock ();
             }
