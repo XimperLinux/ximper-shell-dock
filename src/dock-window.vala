@@ -1067,6 +1067,11 @@ namespace XimperShellDock {
             folder_box.visible = has_folders;
             if (app.config.show_trash) {
                 var trash = new TrashDockIcon (app.config.icon_size);
+                trash.popover_state_changed.connect ((open) => {
+                    popover_open = open;
+                    if (open) cancel_hide ();
+                    else if (autohide_enabled) schedule_hide ();
+                });
                 trash.drag_state_changed.connect ((active) => {
                     if (active) set_external_drag_active (true);
                     else schedule_external_drag_end ();
