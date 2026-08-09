@@ -1,9 +1,12 @@
 [Desktop Entry]
 Name=Ximper Shell Dock
+Name[ru]=Док Ximper Shell
 Comment=Application dock panel
+Comment[ru]=Панель дока приложений
 Exec=ximper-shell-dock
 Icon=view-paged-symbolic
 Terminal=false
 Type=Application
 Categories=Utility;
 Keywords=dock;panel;taskbar;
+Keywords[ru]=док;панель;панель задач;

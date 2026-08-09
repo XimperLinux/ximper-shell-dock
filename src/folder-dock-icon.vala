@@ -144,19 +144,19 @@ namespace XimperShellDock {
             popover.has_arrow = true;
             popover.add_css_class ("menu");
             var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
-            var open = make_menu_item ("Open in Files");
+            var open = make_menu_item (_("Open in Files"));
             open.clicked.connect (() => {
                 popover.popdown ();
                 open_in_file_manager ();
             });
             box.append (open);
-            var settings = make_menu_item ("Stack Settings…");
+            var settings = make_menu_item (_("Stack Settings…"));
             settings.clicked.connect (() => {
                 popover.popdown ();
                 settings_requested (folder_path);
             });
             box.append (settings);
-            var remove = make_menu_item ("Remove from Dock");
+            var remove = make_menu_item (_("Remove from Dock"));
             remove.clicked.connect (() => {
                 popover.popdown ();
                 remove_requested (folder_path);
@@ -280,7 +280,7 @@ namespace XimperShellDock {
             header.append (title);
             var open_header = new Gtk.Button.from_icon_name ("folder-open-symbolic");
             open_header.add_css_class ("flat");
-            open_header.tooltip_text = "Open in Files";
+            open_header.tooltip_text = _("Open in Files");
             open_header.clicked.connect (() => {
                 popover.popdown ();
                 open_in_file_manager ();
@@ -288,7 +288,7 @@ namespace XimperShellDock {
             header.append (open_header);
             var close_header = new Gtk.Button.from_icon_name ("window-close-symbolic");
             close_header.add_css_class ("flat");
-            close_header.tooltip_text = "Close Stack";
+            close_header.tooltip_text = _("Close Stack");
             close_header.clicked.connect (() => { popover.popdown (); });
             header.append (close_header);
             box.append (header);
@@ -342,12 +342,12 @@ namespace XimperShellDock {
                         make_file_button (child, entries[i], list), child);
                 }
                 if (entries.length == 0) {
-                    var empty = new Gtk.Label ("Folder is empty");
+                    var empty = new Gtk.Label (_("Folder is empty"));
                     empty.add_css_class ("dim-label");
                     append_folder_child (container, empty);
                 }
             } catch (Error e) {
-                var unavailable = new Gtk.Label ("Folder is unavailable");
+                var unavailable = new Gtk.Label (_("Folder is unavailable"));
                 unavailable.add_css_class ("dim-label");
                 append_folder_child (container, unavailable);
             }

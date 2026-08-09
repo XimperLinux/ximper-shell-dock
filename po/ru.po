@@ -1,0 +1,287 @@
+# Russian translations for PACKAGE package.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ximper-shell-dock\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-09 19:59+0300\n"
+"PO-Revision-Date: 2026-08-09 19:59+0300\n"
+"Last-Translator: Ximper Shell contributors\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: src/application.vala:14
+msgid "Pin app to dock"
+msgstr "Закрепить приложение в доке"
+
+#: src/application.vala:14 src/application.vala:15
+msgid "DESKTOP_ID"
+msgstr "ID_ПРИЛОЖЕНИЯ"
+
+#: src/application.vala:15
+msgid "Unpin app from dock"
+msgstr "Открепить приложение от дока"
+
+#: src/dock-icon.vala:310
+msgid "Unpin"
+msgstr "Открепить"
+
+#: src/dock-icon.vala:317
+msgid "Pin to Dock"
+msgstr "Закрепить в доке"
+
+#: src/dock-icon.vala:328
+msgid "Quit"
+msgstr "Закрыть"
+
+#: src/dock-window.vala:535
+msgid "Applications"
+msgstr "Приложения"
+
+#: src/dock-window.vala:755
+msgid "Settings"
+msgstr "Настройки"
+
+#: src/dock-window.vala:764
+msgid "Add Folder…"
+msgstr "Добавить папку…"
+
+#: src/dock-window.vala:805
+msgid "Add Folder to Dock"
+msgstr "Добавить папку в док"
+
+#: src/dock-window.vala:810
+msgid "Drag a folder from Files onto the Dock, or paste its path here."
+msgstr "Перетащите папку из «Файлов» в док или вставьте её путь сюда."
+
+#: src/dock-window.vala:823 src/trash-dock-icon.vala:183
+msgid "Cancel"
+msgstr "Отмена"
+
+#: src/dock-window.vala:827
+msgid "Add Folder"
+msgstr "Добавить папку"
+
+#: src/folder-dock-icon.vala:147 src/folder-dock-icon.vala:283
+msgid "Open in Files"
+msgstr "Открыть в «Файлах»"
+
+#: src/folder-dock-icon.vala:153
+msgid "Stack Settings…"
+msgstr "Настройки стопки…"
+
+#: src/folder-dock-icon.vala:159
+msgid "Remove from Dock"
+msgstr "Удалить из дока"
+
+#: src/folder-dock-icon.vala:291
+msgid "Close Stack"
+msgstr "Закрыть стопку"
+
+#: src/folder-dock-icon.vala:345
+msgid "Folder is empty"
+msgstr "Папка пуста"
+
+#: src/folder-dock-icon.vala:350
+msgid "Folder is unavailable"
+msgstr "Папка недоступна"
+
+#: src/folder-settings-window.vala:13
+msgid "Stack Settings"
+msgstr "Настройки стопки"
+
+#: src/folder-settings-window.vala:22
+msgid "Folder in Dock"
+msgstr "Папка в доке"
+
+#: src/folder-settings-window.vala:25 src/settings-window.vala:24
+msgid "Appearance"
+msgstr "Внешний вид"
+
+#: src/folder-settings-window.vala:26
+msgid "Show a plain folder or a preview stack"
+msgstr "Показывать обычную папку или стопку с предпросмотром"
+
+#: src/folder-settings-window.vala:27
+msgid "Folder"
+msgstr "Папка"
+
+#: src/folder-settings-window.vala:27
+msgid "Stack"
+msgstr "Стопка"
+
+#: src/folder-settings-window.vala:36
+msgid "Open as"
+msgstr "Открывать как"
+
+#: src/folder-settings-window.vala:37
+msgid "How the folder contents are displayed"
+msgstr "Способ отображения содержимого папки"
+
+#: src/folder-settings-window.vala:38
+msgid "Grid"
+msgstr "Сетка"
+
+#: src/folder-settings-window.vala:38
+msgid "List"
+msgstr "Список"
+
+#: src/folder-settings-window.vala:38
+msgid "Fan"
+msgstr "Веер"
+
+#: src/folder-settings-window.vala:50
+msgid "Sort by"
+msgstr "Сортировка"
+
+#: src/folder-settings-window.vala:51
+msgid "Name"
+msgstr "Имя"
+
+#: src/folder-settings-window.vala:51
+msgid "Date Modified"
+msgstr "Дата изменения"
+
+#: src/folder-settings-window.vala:51
+msgid "Kind"
+msgstr "Тип"
+
+#: src/settings-window.vala:9
+msgid "Dock Settings"
+msgstr "Настройки дока"
+
+#: src/settings-window.vala:19
+msgid "Dock"
+msgstr "Док"
+
+#: src/settings-window.vala:28
+msgid "Mode"
+msgstr "Режим"
+
+#: src/settings-window.vala:29
+msgid "Dock appearance style"
+msgstr "Стиль отображения дока"
+
+#: src/settings-window.vala:30
+msgid "Floating"
+msgstr "Плавающий"
+
+#: src/settings-window.vala:30
+msgid "Pinned"
+msgstr "Закреплённый"
+
+#: src/settings-window.vala:41
+msgid "Icon Size"
+msgstr "Размер значков"
+
+#: src/settings-window.vala:42
+msgid "Size of dock icons in pixels"
+msgstr "Размер значков дока в пикселях"
+
+#: src/settings-window.vala:52
+msgid "Layer"
+msgstr "Слой"
+
+#: src/settings-window.vala:53
+msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
+msgstr "0 = фон, 1 = нижний, 2 = верхний, 3 = наложение"
+
+#: src/settings-window.vala:65
+msgid "Behavior"
+msgstr "Поведение"
+
+#: src/settings-window.vala:69
+msgid "Autohide"
+msgstr "Автоскрытие"
+
+#: src/settings-window.vala:70
+msgid "Hide dock when not in use"
+msgstr "Скрывать док, когда он не используется"
+
+#: src/settings-window.vala:79
+msgid "Show Trash"
+msgstr "Показывать корзину"
+
+#: src/settings-window.vala:80
+msgid "Display the system Trash at the end of the dock"
+msgstr "Показывать системную корзину в конце дока"
+
+#: src/settings-window.vala:90
+msgid "Magnify icons on hover"
+msgstr "Увеличивать значки при наведении"
+
+#: src/settings-window.vala:91
+msgid "Animate nearby icons when moving the pointer over the dock"
+msgstr "Анимировать соседние значки при перемещении указателя по доку"
+
+#: src/settings-window.vala:100
+msgid "Bounce while launching"
+msgstr "Подпрыгивание при запуске"
+
+#: src/settings-window.vala:101
+msgid "Bounce an app icon until its window appears"
+msgstr "Подпрыгивать значком приложения до появления его окна"
+
+#: src/settings-window.vala:110
+msgid "Bounce speed"
+msgstr "Скорость подпрыгивания"
+
+#: src/settings-window.vala:111
+msgid "Duration of the upward launch bounce in milliseconds"
+msgstr "Длительность движения вверх при запуске в миллисекундах"
+
+#: src/settings-window.vala:120
+msgid "Maximum magnification"
+msgstr "Максимальное увеличение"
+
+#: src/settings-window.vala:121
+msgid "Largest icon size while the pointer is over it"
+msgstr "Наибольший размер значка при наведении указателя"
+
+#: src/settings-window.vala:130
+msgid "Neighbour reach"
+msgstr "Охват соседних значков"
+
+#: src/settings-window.vala:131
+msgid "How many icon widths the wave affects on each side"
+msgstr "На сколько ширин значка волна распространяется в каждую сторону"
+
+#: src/settings-window.vala:140
+msgid "Animation response"
+msgstr "Отклик анимации"
+
+#: src/settings-window.vala:141
+msgid "Time in milliseconds; lower values react faster"
+msgstr "Время в миллисекундах: меньшие значения дают более быстрый отклик"
+
+#: src/trash-dock-icon.vala:30
+msgid "Trash"
+msgstr "Корзина"
+
+#: src/trash-dock-icon.vala:142
+msgid "Empty Trash…"
+msgstr "Очистить корзину…"
+
+#: src/trash-dock-icon.vala:170
+msgid "Empty Trash?"
+msgstr "Очистить корзину?"
+
+#: src/trash-dock-icon.vala:175
+msgid "All items in Trash will be permanently deleted."
+msgstr "Все элементы из корзины будут удалены без возможности восстановления."
+
+#: src/trash-dock-icon.vala:187
+msgid "Empty Trash"
+msgstr "Очистить корзину"
+
+#: src/trash-dock-icon.vala:221
+msgid "Could not empty Trash."
+msgstr "Не удалось очистить корзину."

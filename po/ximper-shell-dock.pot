@@ -1,0 +1,286 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-09 19:59+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/application.vala:14
+msgid "Pin app to dock"
+msgstr ""
+
+#: src/application.vala:14 src/application.vala:15
+msgid "DESKTOP_ID"
+msgstr ""
+
+#: src/application.vala:15
+msgid "Unpin app from dock"
+msgstr ""
+
+#: src/dock-icon.vala:310
+msgid "Unpin"
+msgstr ""
+
+#: src/dock-icon.vala:317
+msgid "Pin to Dock"
+msgstr ""
+
+#: src/dock-icon.vala:328
+msgid "Quit"
+msgstr ""
+
+#: src/dock-window.vala:535
+msgid "Applications"
+msgstr ""
+
+#: src/dock-window.vala:755
+msgid "Settings"
+msgstr ""
+
+#: src/dock-window.vala:764
+msgid "Add Folder…"
+msgstr ""
+
+#: src/dock-window.vala:805
+msgid "Add Folder to Dock"
+msgstr ""
+
+#: src/dock-window.vala:810
+msgid "Drag a folder from Files onto the Dock, or paste its path here."
+msgstr ""
+
+#: src/dock-window.vala:823 src/trash-dock-icon.vala:183
+msgid "Cancel"
+msgstr ""
+
+#: src/dock-window.vala:827
+msgid "Add Folder"
+msgstr ""
+
+#: src/folder-dock-icon.vala:147 src/folder-dock-icon.vala:283
+msgid "Open in Files"
+msgstr ""
+
+#: src/folder-dock-icon.vala:153
+msgid "Stack Settings…"
+msgstr ""
+
+#: src/folder-dock-icon.vala:159
+msgid "Remove from Dock"
+msgstr ""
+
+#: src/folder-dock-icon.vala:291
+msgid "Close Stack"
+msgstr ""
+
+#: src/folder-dock-icon.vala:345
+msgid "Folder is empty"
+msgstr ""
+
+#: src/folder-dock-icon.vala:350
+msgid "Folder is unavailable"
+msgstr ""
+
+#: src/folder-settings-window.vala:13
+msgid "Stack Settings"
+msgstr ""
+
+#: src/folder-settings-window.vala:22
+msgid "Folder in Dock"
+msgstr ""
+
+#: src/folder-settings-window.vala:25 src/settings-window.vala:24
+msgid "Appearance"
+msgstr ""
+
+#: src/folder-settings-window.vala:26
+msgid "Show a plain folder or a preview stack"
+msgstr ""
+
+#: src/folder-settings-window.vala:27
+msgid "Folder"
+msgstr ""
+
+#: src/folder-settings-window.vala:27
+msgid "Stack"
+msgstr ""
+
+#: src/folder-settings-window.vala:36
+msgid "Open as"
+msgstr ""
+
+#: src/folder-settings-window.vala:37
+msgid "How the folder contents are displayed"
+msgstr ""
+
+#: src/folder-settings-window.vala:38
+msgid "Grid"
+msgstr ""
+
+#: src/folder-settings-window.vala:38
+msgid "List"
+msgstr ""
+
+#: src/folder-settings-window.vala:38
+msgid "Fan"
+msgstr ""
+
+#: src/folder-settings-window.vala:50
+msgid "Sort by"
+msgstr ""
+
+#: src/folder-settings-window.vala:51
+msgid "Name"
+msgstr ""
+
+#: src/folder-settings-window.vala:51
+msgid "Date Modified"
+msgstr ""
+
+#: src/folder-settings-window.vala:51
+msgid "Kind"
+msgstr ""
+
+#: src/settings-window.vala:9
+msgid "Dock Settings"
+msgstr ""
+
+#: src/settings-window.vala:19
+msgid "Dock"
+msgstr ""
+
+#: src/settings-window.vala:28
+msgid "Mode"
+msgstr ""
+
+#: src/settings-window.vala:29
+msgid "Dock appearance style"
+msgstr ""
+
+#: src/settings-window.vala:30
+msgid "Floating"
+msgstr ""
+
+#: src/settings-window.vala:30
+msgid "Pinned"
+msgstr ""
+
+#: src/settings-window.vala:41
+msgid "Icon Size"
+msgstr ""
+
+#: src/settings-window.vala:42
+msgid "Size of dock icons in pixels"
+msgstr ""
+
+#: src/settings-window.vala:52
+msgid "Layer"
+msgstr ""
+
+#: src/settings-window.vala:53
+msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
+msgstr ""
+
+#: src/settings-window.vala:65
+msgid "Behavior"
+msgstr ""
+
+#: src/settings-window.vala:69
+msgid "Autohide"
+msgstr ""
+
+#: src/settings-window.vala:70
+msgid "Hide dock when not in use"
+msgstr ""
+
+#: src/settings-window.vala:79
+msgid "Show Trash"
+msgstr ""
+
+#: src/settings-window.vala:80
+msgid "Display the system Trash at the end of the dock"
+msgstr ""
+
+#: src/settings-window.vala:90
+msgid "Magnify icons on hover"
+msgstr ""
+
+#: src/settings-window.vala:91
+msgid "Animate nearby icons when moving the pointer over the dock"
+msgstr ""
+
+#: src/settings-window.vala:100
+msgid "Bounce while launching"
+msgstr ""
+
+#: src/settings-window.vala:101
+msgid "Bounce an app icon until its window appears"
+msgstr ""
+
+#: src/settings-window.vala:110
+msgid "Bounce speed"
+msgstr ""
+
+#: src/settings-window.vala:111
+msgid "Duration of the upward launch bounce in milliseconds"
+msgstr ""
+
+#: src/settings-window.vala:120
+msgid "Maximum magnification"
+msgstr ""
+
+#: src/settings-window.vala:121
+msgid "Largest icon size while the pointer is over it"
+msgstr ""
+
+#: src/settings-window.vala:130
+msgid "Neighbour reach"
+msgstr ""
+
+#: src/settings-window.vala:131
+msgid "How many icon widths the wave affects on each side"
+msgstr ""
+
+#: src/settings-window.vala:140
+msgid "Animation response"
+msgstr ""
+
+#: src/settings-window.vala:141
+msgid "Time in milliseconds; lower values react faster"
+msgstr ""
+
+#: src/trash-dock-icon.vala:30
+msgid "Trash"
+msgstr ""
+
+#: src/trash-dock-icon.vala:142
+msgid "Empty Trash…"
+msgstr ""
+
+#: src/trash-dock-icon.vala:170
+msgid "Empty Trash?"
+msgstr ""
+
+#: src/trash-dock-icon.vala:175
+msgid "All items in Trash will be permanently deleted."
+msgstr ""
+
+#: src/trash-dock-icon.vala:187
+msgid "Empty Trash"
+msgstr ""
+
+#: src/trash-dock-icon.vala:221
+msgid "Could not empty Trash."
+msgstr ""

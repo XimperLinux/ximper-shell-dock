@@ -8,6 +8,7 @@ dock_deps = [
 ]
 
 dock_sources = files(
+  'config.vapi',
   'main.vala',
   'application.vala',
   'config.vala',
@@ -31,6 +32,7 @@ dock_sources = files(
 
 executable('ximper-shell-dock', dock_sources,
   dependencies: dock_deps,
-  c_args: ['-w'],
+  include_directories: include_directories('..'),
+  c_args: ['-DGETTEXT_PACKAGE="ximper-shell-dock"', '-w'],
   install: true,
 )

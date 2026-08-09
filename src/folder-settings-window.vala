@@ -10,7 +10,7 @@ namespace XimperShellDock {
         public FolderSettingsWindow (ConfigManager config, DockFolderConfig folder) {
             this.config = config;
             this.folder = folder;
-            title = "Stack Settings";
+            title = _("Stack Settings");
             default_width = 420;
             default_height = 360;
             modal = false;
@@ -19,12 +19,12 @@ namespace XimperShellDock {
             page.title = Path.get_basename (folder.path);
             page.icon_name = "folder-symbolic";
             var group = new Adw.PreferencesGroup ();
-            group.title = "Folder in Dock";
+            group.title = _("Folder in Dock");
 
             var display = new Adw.ComboRow ();
-            display.title = "Appearance";
-            display.subtitle = "Show a plain folder or a preview stack";
-            display.model = new Gtk.StringList ({"Folder", "Stack"});
+            display.title = _("Appearance");
+            display.subtitle = _("Show a plain folder or a preview stack");
+            display.model = new Gtk.StringList ({_("Folder"), _("Stack")});
             display.selected = folder.display_type == "folder" ? 0 : 1;
             display.notify["selected"].connect (() => {
                 folder.display_type = display.selected == 0 ? "folder" : "stack";
@@ -33,9 +33,9 @@ namespace XimperShellDock {
             group.add (display);
 
             var view = new Adw.ComboRow ();
-            view.title = "Open as";
-            view.subtitle = "How the folder contents are displayed";
-            view.model = new Gtk.StringList ({"Grid", "List", "Fan"});
+            view.title = _("Open as");
+            view.subtitle = _("How the folder contents are displayed");
+            view.model = new Gtk.StringList ({_("Grid"), _("List"), _("Fan")});
             if (folder.view_type == "list") view.selected = 1;
             else if (folder.view_type == "fan") view.selected = 2;
             else view.selected = 0;
@@ -47,8 +47,8 @@ namespace XimperShellDock {
             group.add (view);
 
             var sort = new Adw.ComboRow ();
-            sort.title = "Sort by";
-            sort.model = new Gtk.StringList ({"Name", "Date Modified", "Kind"});
+            sort.title = _("Sort by");
+            sort.model = new Gtk.StringList ({_("Name"), _("Date Modified"), _("Kind")});
             if (folder.sort_type == "modified") sort.selected = 1;
             else if (folder.sort_type == "kind") sort.selected = 2;
             else sort.selected = 0;

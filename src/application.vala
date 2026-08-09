@@ -10,11 +10,7 @@ namespace XimperShellDock {
         private GenericArray<DockTrigger> dock_triggers;
         private DockDBusService? dbus_service;
 
-        private const OptionEntry[] OPTIONS = {
-            { "pin", 'p', 0, OptionArg.STRING, null, "Pin app to dock", "DESKTOP_ID" },
-            { "unpin", 'u', 0, OptionArg.STRING, null, "Unpin app from dock", "DESKTOP_ID" },
-            { null }
-        };
+        private OptionEntry[] options;
 
         public Application () {
             Object (
@@ -23,7 +19,12 @@ namespace XimperShellDock {
             );
             dock_windows = new GenericArray<DockWindow> ();
             dock_triggers = new GenericArray<DockTrigger> ();
-            add_main_option_entries (OPTIONS);
+            options = {
+                { "pin", 'p', 0, OptionArg.STRING, null, _("Pin app to dock"), _("DESKTOP_ID") },
+                { "unpin", 'u', 0, OptionArg.STRING, null, _("Unpin app from dock"), _("DESKTOP_ID") },
+                { null }
+            };
+            add_main_option_entries (options);
         }
 
         protected override void startup () {

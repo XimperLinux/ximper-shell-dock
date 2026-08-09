@@ -307,14 +307,14 @@ namespace XimperShellDock {
 
             // Pin/Unpin
             if (is_pinned) {
-                var btn = make_menu_item ("Unpin");
+                var btn = make_menu_item (_("Unpin"));
                 btn.clicked.connect (() => {
                     popover.popdown ();
                     unpin_requested (desktop_id);
                 });
                 menu_box.append (btn);
             } else {
-                var btn = make_menu_item ("Pin to Dock");
+                var btn = make_menu_item (_("Pin to Dock"));
                 btn.clicked.connect (() => {
                     popover.popdown ();
                     pin_requested (desktop_id);
@@ -325,7 +325,7 @@ namespace XimperShellDock {
             // Quit — only if running
             if (_is_running) {
                 menu_box.append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
-                var btn = make_menu_item ("Quit");
+                var btn = make_menu_item (_("Quit"));
                 btn.clicked.connect (() => {
                     popover.popdown ();
                     close_requested (desktop_id);

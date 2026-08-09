@@ -1,0 +1,7 @@
+src/application.vala
+src/dock-icon.vala
+src/dock-window.vala
+src/folder-dock-icon.vala
+src/folder-settings-window.vala
+src/settings-window.vala
+src/trash-dock-icon.vala

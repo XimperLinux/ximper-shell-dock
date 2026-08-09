@@ -532,7 +532,7 @@ namespace XimperShellDock {
             grid_image = new Gtk.Image.from_icon_name ("view-app-grid-symbolic");
             grid_image.pixel_size = app.config.icon_size;
             grid_button.set_child (grid_image);
-            grid_button.tooltip_text = "Applications";
+            grid_button.tooltip_text = _("Applications");
             grid_button.clicked.connect (() => {
                 grid_requested ();
             });
@@ -752,7 +752,7 @@ namespace XimperShellDock {
             menu_box.margin_start = 4;
             menu_box.margin_end = 4;
 
-            var settings_btn = new Gtk.Button.with_label ("Settings");
+            var settings_btn = new Gtk.Button.with_label (_("Settings"));
             settings_btn.add_css_class ("flat");
             settings_btn.halign = Gtk.Align.FILL;
             settings_btn.clicked.connect (() => {
@@ -761,7 +761,7 @@ namespace XimperShellDock {
             });
             menu_box.append (settings_btn);
 
-            var folder_btn = new Gtk.Button.with_label ("Add Folder…");
+            var folder_btn = new Gtk.Button.with_label (_("Add Folder…"));
             folder_btn.add_css_class ("flat");
             folder_btn.halign = Gtk.Align.FILL;
             folder_btn.clicked.connect (() => {
@@ -802,12 +802,12 @@ namespace XimperShellDock {
             box.margin_bottom = 10;
             box.margin_start = 10;
             box.margin_end = 10;
-            var title = new Gtk.Label ("Add Folder to Dock");
+            var title = new Gtk.Label (_("Add Folder to Dock"));
             title.add_css_class ("heading");
             title.halign = Gtk.Align.START;
             box.append (title);
 
-            var hint = new Gtk.Label ("Drag a folder from Files onto the Dock, or paste its path here.");
+            var hint = new Gtk.Label (_("Drag a folder from Files onto the Dock, or paste its path here."));
             hint.wrap = true;
             hint.max_width_chars = 36;
             hint.add_css_class ("dim-label");
@@ -820,11 +820,11 @@ namespace XimperShellDock {
 
             var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
             actions.halign = Gtk.Align.END;
-            var cancel = new Gtk.Button.with_label ("Cancel");
+            var cancel = new Gtk.Button.with_label (_("Cancel"));
             cancel.add_css_class ("flat");
             cancel.clicked.connect (() => { popover.popdown (); });
             actions.append (cancel);
-            var add = new Gtk.Button.with_label ("Add Folder");
+            var add = new Gtk.Button.with_label (_("Add Folder"));
             add.add_css_class ("suggested-action");
             add.clicked.connect (() => {
                 if (path_entry.text.strip ().length == 0) return;

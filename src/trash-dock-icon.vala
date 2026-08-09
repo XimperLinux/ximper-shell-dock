@@ -27,7 +27,7 @@ namespace XimperShellDock {
             button.add_css_class ("dock-icon");
             button.add_css_class ("flat");
             button.add_css_class ("dock-trash-icon");
-            button.tooltip_text = "Trash";
+            button.tooltip_text = _("Trash");
 
             image = new Gtk.Image.from_icon_name ("user-trash-symbolic");
             image.pixel_size = icon_size;
@@ -139,7 +139,7 @@ namespace XimperShellDock {
             popover.has_arrow = true;
             popover.add_css_class ("menu");
             var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
-            var empty = make_menu_item ("Empty Trash…");
+            var empty = make_menu_item (_("Empty Trash…"));
             empty.add_css_class ("destructive-action");
             empty.clicked.connect (() => {
                 popover.popdown ();
@@ -167,12 +167,12 @@ namespace XimperShellDock {
             box.margin_bottom = 10;
             box.margin_start = 10;
             box.margin_end = 10;
-            var title = new Gtk.Label ("Empty Trash?");
+            var title = new Gtk.Label (_("Empty Trash?"));
             title.add_css_class ("heading");
             title.halign = Gtk.Align.START;
             box.append (title);
             var warning_label = new Gtk.Label (
-                "All items in Trash will be permanently deleted."
+                _("All items in Trash will be permanently deleted.")
             );
             warning_label.wrap = true;
             warning_label.max_width_chars = 34;
@@ -180,11 +180,11 @@ namespace XimperShellDock {
             box.append (warning_label);
             var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
             actions.halign = Gtk.Align.END;
-            var cancel = new Gtk.Button.with_label ("Cancel");
+            var cancel = new Gtk.Button.with_label (_("Cancel"));
             cancel.add_css_class ("flat");
             cancel.clicked.connect (() => { popover.popdown (); });
             actions.append (cancel);
-            var confirm = new Gtk.Button.with_label ("Empty Trash");
+            var confirm = new Gtk.Button.with_label (_("Empty Trash"));
             confirm.add_css_class ("destructive-action");
             confirm.clicked.connect (() => {
                 var error_message = empty_trash ();
@@ -218,7 +218,7 @@ namespace XimperShellDock {
                 if (exit_status != 0) {
                     warning ("Failed to empty Trash: %s", stderr_buf);
                     var message = stderr_buf.strip ();
-                    return message.length > 0 ? message : "Could not empty Trash.";
+                    return message.length > 0 ? message : _("Could not empty Trash.");
                 }
                 return null;
             } catch (Error e) {
