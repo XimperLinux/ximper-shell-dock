@@ -33,6 +33,10 @@
     background: alpha(@accent_bg_color, 0.3);
 }
 
+.dock-trash-drop-active {
+    background: alpha(@accent_bg_color, 0.35);
+}
+
 .dock-separator {
     margin-top: 8px;
     margin-bottom: 8px;

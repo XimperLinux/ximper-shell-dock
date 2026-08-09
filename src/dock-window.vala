@@ -51,6 +51,7 @@ namespace XimperShellDock {
         public void set_visual_state (double scale, double offset) {
             if (widget is DockIcon) ((DockIcon) widget).set_visual_state (scale, offset);
             else if (widget is FolderDockIcon) ((FolderDockIcon) widget).set_visual_state (scale, offset);
+            else if (widget is TrashDockIcon) ((TrashDockIcon) widget).set_visual_state (scale, offset);
             else ((GridWaveIcon) widget).set_visual_state (scale, offset);
         }
 
@@ -70,12 +71,16 @@ namespace XimperShellDock {
         private Gtk.Box running_box;
         private Gtk.Separator folder_separator;
         private Gtk.Box folder_box;
+        private Gtk.Box trash_box;
         private GridWaveIcon grid_wrapper;
         private Gtk.Button grid_button;
         private Gtk.Image grid_image;
         private bool autohide_enabled = false;
         private bool popover_open = false;
         private bool dnd_active = false;
+        private bool item_drag_active = false;
+        private bool external_drag_active = false;
+        private uint external_drag_end_id = 0;
         private bool cursor_inside = false;
         private uint hide_timeout_id = 0;
         private uint watchdog_id = 0;
@@ -131,6 +136,9 @@ namespace XimperShellDock {
             populate_icons ();
 
             app.config.notify["icon-size"].connect (() => {
+                rebuild_dock ();
+            });
+            app.config.notify["show-trash"].connect (() => {
                 rebuild_dock ();
             });
             app.config.notify["magnify-on-hover"].connect (() => {
@@ -378,11 +386,16 @@ namespace XimperShellDock {
             folder_box.overflow = Gtk.Overflow.VISIBLE;
             folder_box.visible = false;
 
+            trash_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            trash_box.overflow = Gtk.Overflow.VISIBLE;
+            trash_box.visible = false;
+
             main_box.append (grid_wrapper);
             main_box.append (icon_box);
             main_box.append (running_box);
             main_box.append (folder_separator);
             main_box.append (folder_box);
+            main_box.append (trash_box);
 
             dock_content = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             dock_content.add_css_class ("dock-content");
@@ -399,6 +412,7 @@ namespace XimperShellDock {
             // DropTarget on icon_box — reorder with animated spacer gap
             var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             icon_drop.motion.connect ((x, y) => {
+                set_external_drag_active (true);
                 // File managers commonly offer a directory both as a
                 // Gdk.FileList and as text/uri-list.  Without this guard GTK
                 // selects our legacy string target while hovering an app icon,
@@ -412,6 +426,7 @@ namespace XimperShellDock {
                 return Gdk.DragAction.MOVE;
             });
             icon_drop.leave.connect (() => {
+                schedule_external_drag_end ();
                 // Return spacer to source position if dragging from dock
                 if (drag_source_item != null) {
                     int src_idx = get_source_visual_index ();
@@ -421,6 +436,7 @@ namespace XimperShellDock {
                 }
             });
             icon_drop.drop.connect ((val, x, y) => {
+                schedule_external_drag_end ();
                 if (drop_contains_file_list (icon_drop)) {
                     remove_all_spacers ();
                     return false;
@@ -436,7 +452,13 @@ namespace XimperShellDock {
             icon_box.add_controller (icon_drop);
 
             var folder_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            folder_drop.motion.connect ((x, y) => {
+                set_external_drag_active (true);
+                return Gdk.DragAction.MOVE;
+            });
+            folder_drop.leave.connect (() => { schedule_external_drag_end (); });
             folder_drop.drop.connect ((val, x, y) => {
+                schedule_external_drag_end ();
                 if (drop_contains_file_list (folder_drop)) return false;
                 var source_id = (string) val;
                 if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
@@ -449,7 +471,13 @@ namespace XimperShellDock {
 
             // DropTarget on dock — accept apps dragged from grid or other sources
             var dock_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
+            dock_drop.motion.connect ((x, y) => {
+                set_external_drag_active (true);
+                return Gdk.DragAction.MOVE;
+            });
+            dock_drop.leave.connect (() => { schedule_external_drag_end (); });
             dock_drop.drop.connect ((val, x, y) => {
+                schedule_external_drag_end ();
                 if (drop_contains_file_list (dock_drop)) return false;
                 var source_id = (string) val;
                 if (source_id == null || !is_known_app_drop (source_id)) return false;
@@ -459,10 +487,10 @@ namespace XimperShellDock {
             main_box.add_controller (dock_drop);
 
             // DnD does not bubble from a child DropTarget to its parent.
-            // Register the native file target on every visual zone, so users
-            // can drop a folder anywhere on the dock instead of hunting for
-            // an empty pixel between icons.
-            setup_file_drop_target (main_box);
+            // Register the native file target on each folder-accepting visual
+            // zone, so users can drop a folder anywhere among dock items.
+            // TrashDockIcon intentionally owns its area exclusively: a file
+            // dropped there must be moved to Trash, never added as a Stack.
             setup_file_drop_target (grid_wrapper);
             setup_file_drop_target (icon_box);
             setup_file_drop_target (running_box);
@@ -484,7 +512,13 @@ namespace XimperShellDock {
 
         private void setup_file_drop_target (Gtk.Widget target) {
             var file_drop = new Gtk.DropTarget (typeof (Gdk.FileList), Gdk.DragAction.COPY);
+            file_drop.motion.connect ((x, y) => {
+                set_external_drag_active (true);
+                return Gdk.DragAction.COPY;
+            });
+            file_drop.leave.connect (() => { schedule_external_drag_end (); });
             file_drop.drop.connect ((val, x, y) => {
+                schedule_external_drag_end ();
                 var files = (Gdk.FileList) val;
                 foreach (var file in files.get_files ()) {
                     if (file.query_file_type (FileQueryInfoFlags.NONE) == FileType.DIRECTORY) {
@@ -761,6 +795,7 @@ namespace XimperShellDock {
             update_box_icon_sizes (icon_box, size);
             update_box_icon_sizes (running_box, size);
             update_box_icon_sizes (folder_box, size);
+            update_box_icon_sizes (trash_box, size);
         }
 
         private void update_box_icon_sizes (Gtk.Box box, int size) {
@@ -806,7 +841,7 @@ namespace XimperShellDock {
         }
 
         private bool is_dock_item_widget (Gtk.Widget widget) {
-            return widget is DockIcon || widget is FolderDockIcon;
+            return widget is DockIcon || widget is FolderDockIcon || widget is TrashDockIcon;
         }
 
         private void collect_wave_item (Gtk.Widget widget, GenericArray<WaveIconState> icons) {
@@ -824,6 +859,7 @@ namespace XimperShellDock {
             collect_box_wave_items (icon_box, icons);
             collect_box_wave_items (running_box, icons);
             collect_box_wave_items (folder_box, icons);
+            collect_box_wave_items (trash_box, icons);
 
             for (uint i = 0; i < icons.length; i++) {
                 double distance = (icons[i].center - wave_focus_x).abs ();
@@ -945,6 +981,12 @@ namespace XimperShellDock {
                 folder_box.remove (child);
                 child = next;
             }
+            child = trash_box.get_first_child ();
+            while (child != null) {
+                var next = child.get_next_sibling ();
+                trash_box.remove (child);
+                child = next;
+            }
             gap_spacer = null;
             gap_spacer_old = null;
             drop_gap_index = -1;
@@ -975,7 +1017,8 @@ namespace XimperShellDock {
                         else if (autohide_enabled) schedule_hide ();
                     });
                     icon.drag_state_changed.connect ((active) => {
-                        dnd_active = active;
+                        item_drag_active = active;
+                        update_dnd_active ();
                         if (active) {
                             reset_icon_magnification ();
                             begin_item_drag (icon);
@@ -1008,11 +1051,30 @@ namespace XimperShellDock {
                     if (open) cancel_hide ();
                     else if (autohide_enabled) schedule_hide ();
                 });
+                folder.drag_state_changed.connect ((active) => {
+                    item_drag_active = active;
+                    update_dnd_active ();
+                    if (active) {
+                        reset_icon_magnification ();
+                        cancel_hide ();
+                    } else if (autohide_enabled && !external_drag_active) {
+                        schedule_hide ();
+                    }
+                });
                 folder_box.append (folder);
             }
             bool has_folders = folders.length > 0;
             folder_box.visible = has_folders;
-            folder_separator.visible = has_folders;
+            if (app.config.show_trash) {
+                var trash = new TrashDockIcon (app.config.icon_size);
+                trash.drag_state_changed.connect ((active) => {
+                    if (active) set_external_drag_active (true);
+                    else schedule_external_drag_end ();
+                });
+                trash_box.append (trash);
+            }
+            trash_box.visible = app.config.show_trash;
+            folder_separator.visible = has_folders || app.config.show_trash;
             update_icon_sizes_to_fit ();
         }
 
@@ -1244,6 +1306,37 @@ namespace XimperShellDock {
                 Source.remove (hide_timeout_id);
                 hide_timeout_id = 0;
             }
+        }
+
+        // A drop arriving from another application has no DockIcon drag
+        // source, so it must participate in autohide explicitly. Delay the
+        // reset until the next main-loop turn: GTK emits leave/enter while a
+        // pointer crosses sibling targets during one continuous drag.
+        private void set_external_drag_active (bool active) {
+            if (active) {
+                if (external_drag_end_id != 0) {
+                    Source.remove (external_drag_end_id);
+                    external_drag_end_id = 0;
+                }
+                external_drag_active = true;
+                update_dnd_active ();
+                cancel_hide ();
+            }
+        }
+
+        private void schedule_external_drag_end () {
+            if (external_drag_end_id != 0) return;
+            external_drag_end_id = Idle.add (() => {
+                external_drag_end_id = 0;
+                external_drag_active = false;
+                update_dnd_active ();
+                if (autohide_enabled && !cursor_inside && !popover_open) schedule_hide ();
+                return Source.REMOVE;
+            });
+        }
+
+        private void update_dnd_active () {
+            dnd_active = item_drag_active || external_drag_active;
         }
     }
 }

@@ -75,6 +75,16 @@ namespace XimperShellDock {
             });
             behavior_group.add (autohide_row);
 
+            var trash_row = new Adw.SwitchRow ();
+            trash_row.title = "Show Trash";
+            trash_row.subtitle = "Display the system Trash at the end of the dock";
+            trash_row.active = app.config.show_trash;
+            trash_row.notify["active"].connect (() => {
+                app.config.show_trash = trash_row.active;
+                app.config.save ();
+            });
+            behavior_group.add (trash_row);
+
             // Hover magnification
             var magnify_row = new Adw.SwitchRow ();
             magnify_row.title = "Magnify icons on hover";
