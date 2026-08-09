@@ -51,6 +51,10 @@ namespace XimperShellDock {
             update_folder_presentation ();
         }
 
+        public void activate_button () {
+            button.activate ();
+        }
+
         public void set_visual_state (double scale, double offset) {
             if (magnification == scale && horizontal_offset == offset) return;
             magnification = scale;

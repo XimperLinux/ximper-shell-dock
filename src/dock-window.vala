@@ -3,6 +3,7 @@ namespace XimperShellDock {
     private class GridWaveIcon : Gtk.Box {
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
+        private Gtk.Button? input_button;
 
         public GridWaveIcon () {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
@@ -14,6 +15,14 @@ namespace XimperShellDock {
             magnification = scale;
             horizontal_offset = offset;
             queue_draw ();
+        }
+
+        public void set_input_button (Gtk.Button button) {
+            input_button = button;
+        }
+
+        public void activate_button () {
+            if (input_button != null) input_button.activate ();
         }
 
         protected override void snapshot (Gtk.Snapshot snapshot) {
@@ -39,11 +48,14 @@ namespace XimperShellDock {
         public double width;
         public double scale;
         public double layout_offset;
+        public Graphene.Rect bounds;
+        public double visual_offset = 0.0;
 
-        public WaveIconState (Gtk.Widget widget, double center, double width, double scale) {
+        public WaveIconState (Gtk.Widget widget, Graphene.Rect bounds, double scale) {
             this.widget = widget;
-            this.center = center;
-            this.width = width;
+            this.bounds = bounds;
+            this.center = bounds.origin.x + bounds.size.width / 2.0;
+            this.width = bounds.size.width;
             this.scale = scale;
             this.layout_offset = 0.0;
         }
@@ -53,6 +65,27 @@ namespace XimperShellDock {
             else if (widget is FolderDockIcon) ((FolderDockIcon) widget).set_visual_state (scale, offset);
             else if (widget is TrashDockIcon) ((TrashDockIcon) widget).set_visual_state (scale, offset);
             else ((GridWaveIcon) widget).set_visual_state (scale, offset);
+        }
+
+        public bool activate_if_visual_only (double x, double y) {
+            if (x >= bounds.origin.x && x <= bounds.origin.x + bounds.size.width &&
+                y >= bounds.origin.y && y <= bounds.origin.y + bounds.size.height) {
+                return false;
+            }
+
+            double visual_x = bounds.origin.x + visual_offset +
+                bounds.size.width * (1.0 - scale) / 2.0;
+            double visual_y = bounds.origin.y + bounds.size.height * (1.0 - scale);
+            if (x < visual_x || x > visual_x + bounds.size.width * scale ||
+                y < visual_y || y > visual_y + bounds.size.height * scale) {
+                return false;
+            }
+
+            if (widget is DockIcon) ((DockIcon) widget).activate_button ();
+            else if (widget is FolderDockIcon) ((FolderDockIcon) widget).activate_button ();
+            else if (widget is TrashDockIcon) ((TrashDockIcon) widget).activate_button ();
+            else ((GridWaveIcon) widget).activate_button ();
+            return true;
         }
 
     }
@@ -90,6 +123,7 @@ namespace XimperShellDock {
         private double wave_target_x = 0.0;
         private double wave_strength = 0.0;
         private double wave_target_strength = 0.0;
+        private GenericArray<WaveIconState>? active_wave_icons;
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
         private int64 leave_timestamp = 0;
@@ -176,6 +210,17 @@ namespace XimperShellDock {
                 update_icon_magnification (x);
             });
             ((Gtk.Widget) this).add_controller (motion);
+
+            var magnified_click = new Gtk.GestureClick ();
+            magnified_click.button = Gdk.BUTTON_PRIMARY;
+            magnified_click.propagation_phase = Gtk.PropagationPhase.CAPTURE;
+            magnified_click.released.connect ((n_press, x, y) => {
+                if (active_wave_icons == null) return;
+                for (uint i = 0; i < active_wave_icons.length; i++) {
+                    if (active_wave_icons[i].activate_if_visual_only (x, y)) break;
+                }
+            });
+            ((Gtk.Widget) this).add_controller (magnified_click);
         }
 
         public void set_trigger (DockTrigger trigger) {
@@ -363,6 +408,7 @@ namespace XimperShellDock {
                 grid_requested ();
             });
             grid_wrapper.append (grid_button);
+            grid_wrapper.set_input_button (grid_button);
 
             // Match DockIcon indicator_box height
             var grid_indicator = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
@@ -847,9 +893,7 @@ namespace XimperShellDock {
         private void collect_wave_item (Gtk.Widget widget, GenericArray<WaveIconState> icons) {
             Graphene.Rect bounds;
             if (!widget.compute_bounds (this, out bounds)) return;
-            icons.add (new WaveIconState (
-                widget, bounds.origin.x + bounds.size.width / 2.0, bounds.size.width, 1.0
-            ));
+            icons.add (new WaveIconState (widget, bounds, 1.0));
         }
 
         private void apply_wave_layout () {
@@ -914,6 +958,7 @@ namespace XimperShellDock {
                 icons[i].set_visual_state (
                     icons[i].scale, icons[i].layout_offset - focus_offset
                 );
+                icons[i].visual_offset = icons[i].layout_offset - focus_offset;
                 base_left = double.min (base_left, icons[i].center - icons[i].width / 2.0);
                 base_right = double.max (base_right, icons[i].center + icons[i].width / 2.0);
                 visual_left = double.min (visual_left,
@@ -931,6 +976,7 @@ namespace XimperShellDock {
                 main_box.margin_end = needed_end;
                 queue_resize ();
             }
+            active_wave_icons = icons;
         }
 
         private void reset_icon_magnification () {
