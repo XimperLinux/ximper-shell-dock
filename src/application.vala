@@ -179,6 +179,20 @@ namespace XimperShellDock {
             rebuild_docks ();
         }
 
+        public void add_dock_folder_at (string folder_path, int position) {
+            if (!FileUtils.test (folder_path, FileTest.IS_DIR) ||
+                config.find_folder (folder_path) != null) return;
+            config.add_folder_at (folder_path, position);
+            config.save ();
+            rebuild_docks ();
+        }
+
+        public void reorder_dock_folder (string folder_path, int position) {
+            config.reorder_folder (folder_path, position);
+            config.save ();
+            rebuild_docks ();
+        }
+
         public void reorder_dock_item (string item, int position) {
             config.reorder_dock_item (item, position);
             config.save ();

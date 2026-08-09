@@ -154,6 +154,8 @@ namespace XimperShellDock {
         private Gtk.Separator folder_separator;
         private Gtk.Box folder_box;
         private Gtk.Box trash_box;
+        private DockItemGapController app_drag_gaps;
+        private DockItemGapController folder_drag_gaps;
         private GridWaveIcon grid_wrapper;
         private Gtk.Button grid_button;
         private Gtk.Image grid_image;
@@ -176,21 +178,13 @@ namespace XimperShellDock {
         private double wave_pointer_y = 0.0;
         private GenericArray<WaveIconState>? active_wave_icons;
         private Gtk.Widget? magnified_drag_item;
-        private bool magnified_drag_uses_gap = false;
+        private DockItemGapController? magnified_drag_gaps;
         private Gdk.Paintable? magnified_drag_paintable;
         private int magnified_drag_width = 0;
         private int magnified_drag_height = 0;
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
         private int64 leave_timestamp = 0;
-
-        // DnD spacer-based gap animation
-        private weak Gtk.Widget? drag_source_item = null;
-        private int drop_gap_index = -1;
-        private Gtk.Widget? gap_spacer = null;
-        private Gtk.Widget? gap_spacer_old = null;
-        private Adw.TimedAnimation? gap_grow_anim = null;
-        private Adw.TimedAnimation? gap_shrink_anim = null;
 
         private int DOCK_HEIGHT = 64;
         private int effective_icon_size = 48;
@@ -313,12 +307,16 @@ namespace XimperShellDock {
                 update_dnd_active ();
                 reset_icon_magnification ();
                 cancel_hide ();
-                magnified_drag_uses_gap = magnified_drag_item is DockIcon;
-                if (magnified_drag_uses_gap) begin_item_drag (magnified_drag_item);
+                if (magnified_drag_item is DockIcon) {
+                    magnified_drag_gaps = app_drag_gaps;
+                } else {
+                    magnified_drag_gaps = folder_drag_gaps;
+                }
+                magnified_drag_gaps.begin (magnified_drag_item);
             });
             magnified_drag.drag_end.connect ((drag, del) => {
-                if (magnified_drag_uses_gap) end_icon_drag ();
-                magnified_drag_uses_gap = false;
+                if (magnified_drag_gaps != null) magnified_drag_gaps.finish ();
+                magnified_drag_gaps = null;
                 magnified_drag_item = null;
                 magnified_drag_paintable = null;
                 item_drag_active = false;
@@ -541,6 +539,13 @@ namespace XimperShellDock {
             trash_box.overflow = Gtk.Overflow.VISIBLE;
             trash_box.visible = false;
 
+            app_drag_gaps = new DockItemGapController (
+                icon_box, get_spacer_width (), (widget) => widget is DockIcon
+            );
+            folder_drag_gaps = new DockItemGapController (
+                folder_box, get_spacer_width (), (widget) => widget is FolderDockIcon
+            );
+
             main_box.append (grid_wrapper);
             main_box.append (icon_box);
             main_box.append (running_box);
@@ -569,34 +574,28 @@ namespace XimperShellDock {
                 // selects our legacy string target while hovering an app icon,
                 // so the reorder spacer reacts to a folder drag.
                 if (drop_contains_file_list (icon_drop)) {
-                    remove_all_spacers ();
+                    app_drag_gaps.clear ();
                     return (Gdk.DragAction) 0;
                 }
-                int idx = compute_insert_index (x);
-                move_gap_to (idx);
+                app_drag_gaps.move_to (app_drag_gaps.compute_insert_index (x));
                 return Gdk.DragAction.MOVE;
             });
             icon_drop.leave.connect (() => {
                 schedule_external_drag_end ();
                 // Return spacer to source position if dragging from dock
-                if (drag_source_item != null) {
-                    int src_idx = get_source_visual_index ();
-                    move_gap_to (src_idx);
-                } else {
-                    remove_all_spacers ();
-                }
+                app_drag_gaps.restore_source_gap ();
             });
             icon_drop.drop.connect ((val, x, y) => {
                 schedule_external_drag_end ();
                 if (drop_contains_file_list (icon_drop)) {
-                    remove_all_spacers ();
+                    app_drag_gaps.clear ();
                     return false;
                 }
                 var source_id = (string) val;
                 if (source_id == null || ConfigManager.is_folder_item (source_id) ||
                     !is_known_app_drop (source_id)) return false;
-                int idx = compute_insert_index (x);
-                remove_all_spacers ();
+                int idx = app_drag_gaps.compute_insert_index (x);
+                app_drag_gaps.clear ();
                 reorder_dock_item_at (normalize_drop_item (source_id), idx);
                 return true;
             });
@@ -605,9 +604,17 @@ namespace XimperShellDock {
             var folder_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             folder_drop.motion.connect ((x, y) => {
                 set_external_drag_active (true);
+                if (drop_contains_file_list (folder_drop)) {
+                    folder_drag_gaps.clear ();
+                    return (Gdk.DragAction) 0;
+                }
+                folder_drag_gaps.move_to (folder_drag_gaps.compute_insert_index (x));
                 return Gdk.DragAction.MOVE;
             });
-            folder_drop.leave.connect (() => { schedule_external_drag_end (); });
+            folder_drop.leave.connect (() => {
+                schedule_external_drag_end ();
+                folder_drag_gaps.restore_source_gap ();
+            });
             folder_drop.drop.connect ((val, x, y) => {
                 schedule_external_drag_end ();
                 if (drop_contains_file_list (folder_drop)) return false;
@@ -615,7 +622,9 @@ namespace XimperShellDock {
                 if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
                 var path = ConfigManager.item_folder_path (source_id);
                 if (!FileUtils.test (path, FileTest.IS_DIR)) return false;
-                app.add_dock_folder (path);
+                int position = folder_drag_gaps.compute_insert_index (x);
+                folder_drag_gaps.clear ();
+                app.reorder_dock_folder (path, position);
                 return true;
             });
             folder_box.add_controller (folder_drop);
@@ -661,7 +670,7 @@ namespace XimperShellDock {
                 drop.get_formats ().contain_gtype (typeof (Gdk.FileList));
         }
 
-        private void setup_file_drop_target (Gtk.Widget target) {
+        private void setup_file_drop_target (Gtk.Widget target, int insert_folder_position = -1) {
             var file_drop = new Gtk.DropTarget (typeof (Gdk.FileList), Gdk.DragAction.COPY);
             file_drop.motion.connect ((x, y) => {
                 set_external_drag_active (true);
@@ -673,7 +682,7 @@ namespace XimperShellDock {
                 var files = (Gdk.FileList) val;
                 foreach (var file in files.get_files ()) {
                     if (file.query_file_type (FileQueryInfoFlags.NONE) == FileType.DIRECTORY) {
-                        add_folder_file (file);
+                        add_folder_file (file, insert_folder_position);
                         return true;
                     }
                 }
@@ -812,10 +821,14 @@ namespace XimperShellDock {
             popover.popup ();
         }
 
-        private void add_folder_file (File folder) {
+        private void add_folder_file (File folder, int insert_folder_position = -1) {
             var path = folder.get_path ();
             if (path == null || !FileUtils.test (path, FileTest.IS_DIR)) return;
-            add_drop_item ("folder:" + path);
+            if (insert_folder_position >= 0) {
+                app.add_dock_folder_at (path, insert_folder_position);
+            } else {
+                app.add_dock_folder (path);
+            }
         }
 
         public void rebuild_dock () {
@@ -1154,10 +1167,8 @@ namespace XimperShellDock {
                 trash_box.remove (child);
                 child = next;
             }
-            gap_spacer = null;
-            gap_spacer_old = null;
-            drop_gap_index = -1;
-            drag_source_item = null;
+            app_drag_gaps.clear ();
+            folder_drag_gaps.clear ();
 
             var items = app.config.dock_items;
             for (uint i = 0; i < items.length; i++) {
@@ -1188,9 +1199,9 @@ namespace XimperShellDock {
                         update_dnd_active ();
                         if (active) {
                             reset_icon_magnification ();
-                            begin_item_drag (icon);
+                            app_drag_gaps.begin (icon);
                         } else {
-                            end_icon_drag ();
+                            app_drag_gaps.finish ();
                         }
                     });
                     icon_box.append (icon);
@@ -1200,6 +1211,7 @@ namespace XimperShellDock {
             var folders = app.config.dock_folders;
             for (uint i = 0; i < folders.length; i++) {
                 var folder = new FolderDockIcon (folders[i], app.config.icon_size);
+                int insert_folder_position = (int) i + 1;
                 folder.remove_requested.connect ((folder_path) => {
                     remove_folder (folder_path);
                 });
@@ -1224,10 +1236,17 @@ namespace XimperShellDock {
                     if (active) {
                         reset_icon_magnification ();
                         cancel_hide ();
-                    } else if (autohide_enabled && !external_drag_active) {
-                        schedule_hide ();
+                        folder_drag_gaps.begin (folder);
+                    } else {
+                        folder_drag_gaps.finish ();
+                        if (autohide_enabled && !external_drag_active) schedule_hide ();
                     }
                 });
+                // A DropTarget on folder_box is not reached when the file
+                // manager targets this child icon directly. Register the
+                // native file target here so a dropped directory is inserted
+                // immediately after the folder it was dropped onto.
+                setup_file_drop_target (folder, insert_folder_position);
                 folder_box.append (folder);
             }
             bool has_folders = folders.length > 0;
@@ -1254,175 +1273,6 @@ namespace XimperShellDock {
 
         private int get_spacer_width () {
             return effective_icon_size + 8;
-        }
-
-        // Called when an icon drag begins. Hides the source and
-        // inserts a full-size spacer at its position so that
-        // the total box width stays constant — no re-centering.
-        private void begin_item_drag (Gtk.Widget item) {
-            drag_source_item = item;
-            cancel_hide ();
-
-            // Find visual index of the source before hiding
-            int src_idx = 0;
-            var child = icon_box.get_first_child ();
-            while (child != null) {
-                if (child == item) break;
-                if (child.visible && is_dock_item_widget (child)) src_idx++;
-                child = child.get_next_sibling ();
-            }
-
-            item.visible = false;
-
-            // Place spacer at source position (full width, no animation)
-            int w = get_spacer_width ();
-            gap_spacer = create_spacer (w);
-            insert_spacer_at (gap_spacer, src_idx);
-            drop_gap_index = src_idx;
-        }
-
-        // Called when the drag ends (drop or cancel).
-        private void end_icon_drag () {
-            remove_all_spacers ();
-            if (drag_source_item != null) {
-                drag_source_item.visible = true;
-            }
-            drag_source_item = null;
-        }
-
-        // Get the visual index where the source icon was (among
-        // visible DockIcons, excluding the hidden source).
-        private int get_source_visual_index () {
-            if (drag_source_item == null) return 0;
-            int idx = 0;
-            var child = icon_box.get_first_child ();
-            while (child != null) {
-                if (child == drag_source_item) return idx;
-                if (is_dock_item_widget (child) && child.visible) idx++;
-                child = child.get_next_sibling ();
-            }
-            return idx;
-        }
-
-        // Compute insertion index from cursor X. Only considers
-        // visible DockIcon widgets — spacers are skipped.
-        private int compute_insert_index (double cursor_x) {
-            int index = 0;
-            var child = icon_box.get_first_child ();
-            while (child != null) {
-                if (child.visible && is_dock_item_widget (child)) {
-                    Graphene.Rect bounds;
-                    if (child.compute_bounds (icon_box, out bounds)) {
-                        double mid = bounds.origin.x + bounds.size.width / 2.0;
-                        if (cursor_x < mid) return index;
-                    }
-                    index++;
-                }
-                child = child.get_next_sibling ();
-            }
-            return index;
-        }
-
-        // Move the gap spacer to a new position. Uses two spacers
-        // simultaneously — old one shrinks, new one grows — so
-        // total width stays constant and icons slide smoothly.
-        private void move_gap_to (int new_index) {
-            if (new_index == drop_gap_index) return;
-
-            int w = get_spacer_width ();
-
-            // Cancel running animations
-            if (gap_grow_anim != null) { gap_grow_anim.pause (); gap_grow_anim = null; }
-            if (gap_shrink_anim != null) { gap_shrink_anim.pause (); gap_shrink_anim = null; }
-
-            // Clean up any leftover old spacer
-            if (gap_spacer_old != null) {
-                deferred_remove (gap_spacer_old);
-                gap_spacer_old = null;
-            }
-
-            // Demote current spacer to "old" — will shrink
-            if (gap_spacer != null) {
-                gap_spacer_old = gap_spacer;
-                var old_sp = gap_spacer_old;
-                int cur_w = old_sp.get_width ();
-                if (cur_w <= 0) cur_w = w;
-                var shrink_tgt = new Adw.CallbackAnimationTarget ((val) => {
-                    old_sp.set_size_request ((int) val, 1);
-                });
-                gap_shrink_anim = new Adw.TimedAnimation (old_sp, (double) cur_w, 0, 150, shrink_tgt);
-                gap_shrink_anim.easing = Adw.Easing.EASE_OUT_CUBIC;
-                gap_shrink_anim.done.connect (() => {
-                    if (gap_spacer_old == old_sp) gap_spacer_old = null;
-                    deferred_remove (old_sp);
-                });
-                gap_shrink_anim.play ();
-            }
-
-            // Create new spacer at the target position — will grow
-            drop_gap_index = new_index;
-            gap_spacer = create_spacer (0);
-            insert_spacer_at (gap_spacer, new_index);
-
-            var new_sp = gap_spacer;
-            var grow_tgt = new Adw.CallbackAnimationTarget ((val) => {
-                new_sp.set_size_request ((int) val, 1);
-            });
-            gap_grow_anim = new Adw.TimedAnimation (new_sp, 0, (double) w, 150, grow_tgt);
-            gap_grow_anim.easing = Adw.Easing.EASE_OUT_CUBIC;
-            gap_grow_anim.play ();
-        }
-
-        // Insert a spacer widget before the Nth visible DockIcon.
-        // If index >= visible count, appends at the end.
-        private void insert_spacer_at (Gtk.Widget spacer, int before_index) {
-            int vis = 0;
-            var child = icon_box.get_first_child ();
-            while (child != null) {
-                if (child.visible && is_dock_item_widget (child)) {
-                    if (vis == before_index) {
-                        // insert_child_after(widget, null) prepends
-                        var prev = child.get_prev_sibling ();
-                        icon_box.insert_child_after (spacer, prev);
-                        return;
-                    }
-                    vis++;
-                }
-                child = child.get_next_sibling ();
-            }
-            icon_box.append (spacer);
-        }
-
-        private Gtk.Widget create_spacer (int width) {
-            var spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
-            spacer.set_size_request (width, 1);
-            spacer.sensitive = false;
-            spacer.can_target = false;
-            return spacer;
-        }
-
-        private void deferred_remove (Gtk.Widget widget) {
-            widget.visible = false;
-            Idle.add (() => {
-                if (widget.get_parent () != null)
-                    icon_box.remove (widget);
-                return Source.REMOVE;
-            });
-        }
-
-        // Remove all spacer widgets and cancel animations.
-        private void remove_all_spacers () {
-            if (gap_grow_anim != null) { gap_grow_anim.pause (); gap_grow_anim = null; }
-            if (gap_shrink_anim != null) { gap_shrink_anim.pause (); gap_shrink_anim = null; }
-            if (gap_spacer != null) {
-                deferred_remove (gap_spacer);
-                gap_spacer = null;
-            }
-            if (gap_spacer_old != null) {
-                deferred_remove (gap_spacer_old);
-                gap_spacer_old = null;
-            }
-            drop_gap_index = -1;
         }
 
         // ── Dock item persistence ───────────────────────────────

@@ -318,12 +318,28 @@ namespace XimperShellDock {
                 dock_folders.add (new DockFolderConfig (path));
         }
 
+        public void add_folder_at (string path, int position) {
+            if (find_folder (path) != null) return;
+            if (position < 0) position = 0;
+            if (position > (int) dock_folders.length) position = (int) dock_folders.length;
+            dock_folders.insert (position, new DockFolderConfig (path));
+        }
+
         public void remove_folder (string path) {
             var result = new GenericArray<DockFolderConfig> ();
             for (uint i = 0; i < dock_folders.length; i++) {
                 if (dock_folders[i].path != path) result.add (dock_folders[i]);
             }
             dock_folders = result;
+        }
+
+        public void reorder_folder (string path, int position) {
+            DockFolderConfig? folder = find_folder (path);
+            if (folder == null) return;
+            remove_folder (path);
+            if (position < 0) position = 0;
+            if (position > (int) dock_folders.length) position = (int) dock_folders.length;
+            dock_folders.insert (position, folder);
         }
     }
 }

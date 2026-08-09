@@ -108,10 +108,17 @@ namespace XimperShellDock {
         private void setup_dnd () {
             var source = new Gtk.DragSource ();
             source.set_actions (Gdk.DragAction.MOVE);
+            Gdk.Paintable? drag_paintable = null;
+            int hotspot_x = 0;
+            int hotspot_y = 0;
             source.prepare.connect ((x, y) => {
+                drag_paintable = create_drag_paintable (out hotspot_x, out hotspot_y);
                 return new Gdk.ContentProvider.for_value ("folder:" + folder_path);
             });
-            source.drag_begin.connect ((drag) => { drag_state_changed (true); });
+            source.drag_begin.connect ((drag) => {
+                if (drag_paintable != null) source.set_icon (drag_paintable, hotspot_x, hotspot_y);
+                drag_state_changed (true);
+            });
             source.drag_end.connect ((drag, del) => { drag_state_changed (false); });
             button.add_controller (source);
         }

@@ -15,6 +15,7 @@ dock_sources = files(
   'app-provider.vala',
   'settings-window.vala',
   'dock-window.vala',
+  'dock-item-gap-controller.vala',
   'dock-icon.vala',
   'trash-dock-icon.vala',
   'folder-dock-icon.vala',
