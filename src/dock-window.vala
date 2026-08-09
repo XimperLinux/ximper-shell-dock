@@ -25,6 +25,12 @@ namespace XimperShellDock {
             if (input_button != null) input_button.activate ();
         }
 
+        public void set_magnified_hover (bool hovered) {
+            if (input_button == null) return;
+            if (hovered) input_button.add_css_class ("dock-icon-magnified-hover");
+            else input_button.remove_css_class ("dock-icon-magnified-hover");
+        }
+
         protected override void snapshot (Gtk.Snapshot snapshot) {
             if (magnification == 1.0 && horizontal_offset == 0.0) {
                 base.snapshot (snapshot);
@@ -67,25 +73,68 @@ namespace XimperShellDock {
             else ((GridWaveIcon) widget).set_visual_state (scale, offset);
         }
 
+        public bool contains_visual (double x, double y) {
+            double visual_x = bounds.origin.x + visual_offset +
+                bounds.size.width * (1.0 - scale) / 2.0;
+            double visual_y = bounds.origin.y + bounds.size.height * (1.0 - scale);
+            return x >= visual_x && x <= visual_x + bounds.size.width * scale &&
+                y >= visual_y && y <= visual_y + bounds.size.height * scale;
+        }
+
+        public void set_magnified_hover (bool hovered) {
+            if (widget is DockIcon) ((DockIcon) widget).set_magnified_hover (hovered);
+            else if (widget is FolderDockIcon) ((FolderDockIcon) widget).set_magnified_hover (hovered);
+            else if (widget is TrashDockIcon) ((TrashDockIcon) widget).set_magnified_hover (hovered);
+            else ((GridWaveIcon) widget).set_magnified_hover (hovered);
+        }
+
         public bool activate_if_visual_only (double x, double y) {
             if (x >= bounds.origin.x && x <= bounds.origin.x + bounds.size.width &&
                 y >= bounds.origin.y && y <= bounds.origin.y + bounds.size.height) {
                 return false;
             }
-
-            double visual_x = bounds.origin.x + visual_offset +
-                bounds.size.width * (1.0 - scale) / 2.0;
-            double visual_y = bounds.origin.y + bounds.size.height * (1.0 - scale);
-            if (x < visual_x || x > visual_x + bounds.size.width * scale ||
-                y < visual_y || y > visual_y + bounds.size.height * scale) {
-                return false;
-            }
+            if (!contains_visual (x, y)) return false;
 
             if (widget is DockIcon) ((DockIcon) widget).activate_button ();
             else if (widget is FolderDockIcon) ((FolderDockIcon) widget).activate_button ();
             else if (widget is TrashDockIcon) ((TrashDockIcon) widget).activate_button ();
             else ((GridWaveIcon) widget).activate_button ();
             return true;
+        }
+
+        public bool prepare_drag_if_visual_only (double x, double y, out string? source_id) {
+            source_id = null;
+            if (x >= bounds.origin.x && x <= bounds.origin.x + bounds.size.width &&
+                y >= bounds.origin.y && y <= bounds.origin.y + bounds.size.height) {
+                return false;
+            }
+            if (!contains_visual (x, y)) return false;
+
+            if (widget is DockIcon) {
+                source_id = ((DockIcon) widget).desktop_id;
+                return true;
+            }
+            if (widget is FolderDockIcon) {
+                source_id = "folder:" + ((FolderDockIcon) widget).folder_path;
+                return true;
+            }
+            return false;
+        }
+
+        public Gtk.Widget get_widget () {
+            return widget;
+        }
+
+        public Gdk.Paintable? create_drag_paintable (out int hotspot_x, out int hotspot_y) {
+            hotspot_x = 0;
+            hotspot_y = 0;
+            if (widget is DockIcon) {
+                return ((DockIcon) widget).create_drag_paintable (out hotspot_x, out hotspot_y);
+            }
+            if (widget is FolderDockIcon) {
+                return ((FolderDockIcon) widget).create_drag_paintable (out hotspot_x, out hotspot_y);
+            }
+            return null;
         }
 
     }
@@ -123,7 +172,14 @@ namespace XimperShellDock {
         private double wave_target_x = 0.0;
         private double wave_strength = 0.0;
         private double wave_target_strength = 0.0;
+        private double wave_pointer_x = 0.0;
+        private double wave_pointer_y = 0.0;
         private GenericArray<WaveIconState>? active_wave_icons;
+        private Gtk.Widget? magnified_drag_item;
+        private bool magnified_drag_uses_gap = false;
+        private Gdk.Paintable? magnified_drag_paintable;
+        private int magnified_drag_width = 0;
+        private int magnified_drag_height = 0;
         private weak DockTrigger? linked_trigger = null;
         private int64 show_timestamp = 0;
         private int64 leave_timestamp = 0;
@@ -195,6 +251,7 @@ namespace XimperShellDock {
             var motion = new Gtk.EventControllerMotion ();
             motion.leave.connect (() => {
                 cursor_inside = false;
+                clear_magnified_hover ();
                 reset_icon_magnification ();
                 leave_timestamp = GLib.get_monotonic_time () / 1000;
                 if (autohide_enabled && !popover_open && !dnd_active) {
@@ -203,10 +260,14 @@ namespace XimperShellDock {
             });
             motion.enter.connect ((x, y) => {
                 cursor_inside = true;
+                wave_pointer_x = x;
+                wave_pointer_y = y;
                 show_timestamp = GLib.get_monotonic_time () / 1000;
                 cancel_hide ();
             });
             motion.motion.connect ((x, y) => {
+                wave_pointer_x = x;
+                wave_pointer_y = y;
                 update_icon_magnification (x);
             });
             ((Gtk.Widget) this).add_controller (motion);
@@ -221,6 +282,50 @@ namespace XimperShellDock {
                 }
             });
             ((Gtk.Widget) this).add_controller (magnified_click);
+
+            var magnified_drag = new Gtk.DragSource ();
+            magnified_drag.set_actions (Gdk.DragAction.MOVE);
+            magnified_drag.prepare.connect ((x, y) => {
+                if (active_wave_icons == null) return null;
+                for (uint i = 0; i < active_wave_icons.length; i++) {
+                    string? source_id;
+                    if (!active_wave_icons[i].prepare_drag_if_visual_only (x, y, out source_id)) {
+                        continue;
+                    }
+                    magnified_drag_item = active_wave_icons[i].get_widget ();
+                    magnified_drag_paintable = active_wave_icons[i].create_drag_paintable (
+                        out magnified_drag_width, out magnified_drag_height
+                    );
+                    return new Gdk.ContentProvider.for_value (source_id);
+                }
+                return null;
+            });
+            magnified_drag.drag_begin.connect ((drag) => {
+                if (magnified_drag_item == null) return;
+                if (magnified_drag_paintable != null) {
+                    magnified_drag.set_icon (
+                        magnified_drag_paintable,
+                        magnified_drag_width / 2,
+                        magnified_drag_height / 2
+                    );
+                }
+                item_drag_active = true;
+                update_dnd_active ();
+                reset_icon_magnification ();
+                cancel_hide ();
+                magnified_drag_uses_gap = magnified_drag_item is DockIcon;
+                if (magnified_drag_uses_gap) begin_item_drag (magnified_drag_item);
+            });
+            magnified_drag.drag_end.connect ((drag, del) => {
+                if (magnified_drag_uses_gap) end_icon_drag ();
+                magnified_drag_uses_gap = false;
+                magnified_drag_item = null;
+                magnified_drag_paintable = null;
+                item_drag_active = false;
+                update_dnd_active ();
+                if (autohide_enabled && !external_drag_active) schedule_hide ();
+            });
+            ((Gtk.Widget) this).add_controller (magnified_drag);
         }
 
         public void set_trigger (DockTrigger trigger) {
@@ -977,6 +1082,22 @@ namespace XimperShellDock {
                 queue_resize ();
             }
             active_wave_icons = icons;
+            update_magnified_hover (icons);
+        }
+
+        private void update_magnified_hover (GenericArray<WaveIconState> icons) {
+            for (uint i = 0; i < icons.length; i++) {
+                icons[i].set_magnified_hover (
+                    cursor_inside && icons[i].contains_visual (wave_pointer_x, wave_pointer_y)
+                );
+            }
+        }
+
+        private void clear_magnified_hover () {
+            if (active_wave_icons == null) return;
+            for (uint i = 0; i < active_wave_icons.length; i++) {
+                active_wave_icons[i].set_magnified_hover (false);
+            }
         }
 
         private void reset_icon_magnification () {

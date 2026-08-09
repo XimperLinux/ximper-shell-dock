@@ -59,6 +59,11 @@ namespace XimperShellDock {
             button.activate ();
         }
 
+        public void set_magnified_hover (bool hovered) {
+            if (hovered) button.add_css_class ("dock-icon-magnified-hover");
+            else button.remove_css_class ("dock-icon-magnified-hover");
+        }
+
         public void set_visual_state (double scale, double offset) {
             if (magnification == scale && horizontal_offset == offset) return;
             magnification = scale;

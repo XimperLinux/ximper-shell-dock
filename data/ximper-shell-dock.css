@@ -25,7 +25,8 @@
     transition: background 200ms ease;
 }
 
-.dock-icon:hover {
+.dock-icon:hover,
+.dock-icon.dock-icon-magnified-hover {
     background: alpha(@accent_bg_color, 0.15);
 }
 

@@ -113,6 +113,34 @@ namespace XimperShellDock {
             button.activate ();
         }
 
+        public Gdk.Paintable? create_drag_paintable (out int hotspot_x, out int hotspot_y) {
+            int width = get_width ();
+            int height = get_height ();
+            double scale = magnification;
+            double visual_x = horizontal_offset + width * (1.0 - scale) / 2.0;
+            double visual_y = height * (1.0 - scale) + vertical_bounce_offset;
+            int left = (int) (double.max (-visual_x, 0.0) + 0.999);
+            int right = (int) (double.max (visual_x + width * scale - width, 0.0) + 0.999);
+            int top = (int) (double.max (-visual_y, 0.0) + 0.999);
+            int bottom = (int) (double.max (visual_y + height * scale - height, 0.0) + 0.999);
+
+            var snapshot = new Gtk.Snapshot ();
+            var offset = Graphene.Point ();
+            offset.init (left, top);
+            snapshot.translate (offset);
+            this.snapshot (snapshot);
+            var size = Graphene.Size ();
+            size.init (width + left + right, height + top + bottom);
+            hotspot_x = left + width / 2;
+            hotspot_y = top + height / 2;
+            return snapshot.free_to_paintable (size);
+        }
+
+        public void set_magnified_hover (bool hovered) {
+            if (hovered) button.add_css_class ("dock-icon-magnified-hover");
+            else button.remove_css_class ("dock-icon-magnified-hover");
+        }
+
         public void set_visual_state (double scale, double offset) {
             if (magnification == scale && horizontal_offset == offset) return;
             magnification = scale;
@@ -217,11 +245,7 @@ namespace XimperShellDock {
             int drag_h = 0;
             source.prepare.connect ((x, y) => {
                 // Snapshot the icon before it gets hidden
-                var snapshot = new Gtk.Snapshot ();
-                this.snapshot (snapshot);
-                drag_paintable = snapshot.free_to_paintable (null);
-                drag_w = get_width ();
-                drag_h = get_height ();
+                drag_paintable = create_drag_paintable (out drag_w, out drag_h);
                 return new Gdk.ContentProvider.for_value (desktop_id);
             });
             source.drag_begin.connect ((drag) => {
