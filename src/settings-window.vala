@@ -60,6 +60,12 @@ namespace XimperShellDock {
 
             page.add (appearance_group);
 
+            var monitors_group = new Adw.PreferencesGroup ();
+            monitors_group.title = _("Monitors");
+            monitors_group.description = _("Choose the monitors where the dock is shown");
+            build_monitor_rows (monitors_group);
+            page.add (monitors_group);
+
             // Behavior group
             var behavior_group = new Adw.PreferencesGroup ();
             behavior_group.title = _("Behavior");
@@ -153,6 +159,41 @@ namespace XimperShellDock {
             page.add (behavior_group);
 
             add (page);
+        }
+
+        private void build_monitor_rows (Adw.PreferencesGroup group) {
+            var monitors = Gdk.Display.get_default ().get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var monitor = (Gdk.Monitor) monitors.get_item (i);
+                var id = Application.monitor_id (monitor, i);
+                var model = monitor.get_model ();
+
+                var row = new Adw.SwitchRow ();
+                row.title = model != null && model.length > 0 ? model : id;
+                row.subtitle = id;
+                row.active = app.config.is_monitor_enabled (id);
+                row.notify["active"].connect (() => {
+                    var selected = new GenericArray<string> ();
+                    for (uint j = 0; j < monitors.get_n_items (); j++) {
+                        var candidate = (Gdk.Monitor) monitors.get_item (j);
+                        var candidate_id = Application.monitor_id (candidate, j);
+                        bool enabled = candidate_id == id ? row.active :
+                            app.config.is_monitor_enabled (candidate_id);
+                        if (enabled) selected.add (candidate_id);
+                    }
+                    // Keep one surface available for opening Settings again.
+                    // A configuration with no visible dock would otherwise be
+                    // impractical to recover through the graphical UI.
+                    if (selected.length == 0) {
+                        row.active = true;
+                        return;
+                    }
+                    app.config.set_monitor_ids (selected);
+                    app.config.save ();
+                    app.apply_monitor_selection ();
+                });
+                group.add (row);
+            }
         }
     }
 }

@@ -1,14 +1,14 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the ximper-shell-dock package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-09 19:59+0300\n"
+"POT-Creation-Date: 2026-08-10 18:33+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,18 +17,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/application.vala:14
+#: src/application.vala:24
 msgid "Pin app to dock"
 msgstr ""
 
-#: src/application.vala:14 src/application.vala:15
+#: src/application.vala:24 src/application.vala:25
 msgid "DESKTOP_ID"
 msgstr ""
 
-#: src/application.vala:15
+#: src/application.vala:25
 msgid "Unpin app from dock"
 msgstr ""
 
+#. Pin/Unpin
 #: src/dock-icon.vala:310
 msgid "Unpin"
 msgstr ""
@@ -41,31 +42,31 @@ msgstr ""
 msgid "Quit"
 msgstr ""
 
-#: src/dock-window.vala:535
+#: src/dock-window.vala:542
 msgid "Applications"
 msgstr ""
 
-#: src/dock-window.vala:755
+#: src/dock-window.vala:762
 msgid "Settings"
 msgstr ""
 
-#: src/dock-window.vala:764
+#: src/dock-window.vala:771
 msgid "Add Folder…"
 msgstr ""
 
-#: src/dock-window.vala:805
+#: src/dock-window.vala:812
 msgid "Add Folder to Dock"
 msgstr ""
 
-#: src/dock-window.vala:810
+#: src/dock-window.vala:817
 msgid "Drag a folder from Files onto the Dock, or paste its path here."
 msgstr ""
 
-#: src/dock-window.vala:823 src/trash-dock-icon.vala:183
+#: src/dock-window.vala:830 src/trash-dock-icon.vala:183
 msgid "Cancel"
 msgstr ""
 
-#: src/dock-window.vala:827
+#: src/dock-window.vala:834
 msgid "Add Folder"
 msgstr ""
 
@@ -101,6 +102,7 @@ msgstr ""
 msgid "Folder in Dock"
 msgstr ""
 
+#. Appearance group
 #: src/folder-settings-window.vala:25 src/settings-window.vala:24
 msgid "Appearance"
 msgstr ""
@@ -161,6 +163,7 @@ msgstr ""
 msgid "Dock"
 msgstr ""
 
+#. Mode
 #: src/settings-window.vala:28
 msgid "Mode"
 msgstr ""
@@ -177,6 +180,7 @@ msgstr ""
 msgid "Pinned"
 msgstr ""
 
+#. Icon size
 #: src/settings-window.vala:41
 msgid "Icon Size"
 msgstr ""
@@ -185,6 +189,7 @@ msgstr ""
 msgid "Size of dock icons in pixels"
 msgstr ""
 
+#. Layer
 #: src/settings-window.vala:52
 msgid "Layer"
 msgstr ""
@@ -193,71 +198,82 @@ msgstr ""
 msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
 msgstr ""
 
+#: src/settings-window.vala:64
+msgid "Monitors"
+msgstr ""
+
 #: src/settings-window.vala:65
+msgid "Choose the monitors where the dock is shown"
+msgstr ""
+
+#. Behavior group
+#: src/settings-window.vala:71
 msgid "Behavior"
 msgstr ""
 
-#: src/settings-window.vala:69
+#. Autohide
+#: src/settings-window.vala:75
 msgid "Autohide"
 msgstr ""
 
-#: src/settings-window.vala:70
+#: src/settings-window.vala:76
 msgid "Hide dock when not in use"
 msgstr ""
 
-#: src/settings-window.vala:79
+#: src/settings-window.vala:89
 msgid "Show Trash"
 msgstr ""
 
-#: src/settings-window.vala:80
+#: src/settings-window.vala:90
 msgid "Display the system Trash at the end of the dock"
 msgstr ""
 
-#: src/settings-window.vala:90
+#. Hover magnification
+#: src/settings-window.vala:100
 msgid "Magnify icons on hover"
 msgstr ""
 
-#: src/settings-window.vala:91
+#: src/settings-window.vala:101
 msgid "Animate nearby icons when moving the pointer over the dock"
 msgstr ""
 
-#: src/settings-window.vala:100
+#: src/settings-window.vala:110
 msgid "Bounce while launching"
 msgstr ""
 
-#: src/settings-window.vala:101
+#: src/settings-window.vala:111
 msgid "Bounce an app icon until its window appears"
 msgstr ""
 
-#: src/settings-window.vala:110
+#: src/settings-window.vala:120
 msgid "Bounce speed"
 msgstr ""
 
-#: src/settings-window.vala:111
+#: src/settings-window.vala:121
 msgid "Duration of the upward launch bounce in milliseconds"
 msgstr ""
 
-#: src/settings-window.vala:120
+#: src/settings-window.vala:130
 msgid "Maximum magnification"
 msgstr ""
 
-#: src/settings-window.vala:121
+#: src/settings-window.vala:131
 msgid "Largest icon size while the pointer is over it"
 msgstr ""
 
-#: src/settings-window.vala:130
+#: src/settings-window.vala:140
 msgid "Neighbour reach"
 msgstr ""
 
-#: src/settings-window.vala:131
+#: src/settings-window.vala:141
 msgid "How many icon widths the wave affects on each side"
 msgstr ""
 
-#: src/settings-window.vala:140
+#: src/settings-window.vala:150
 msgid "Animation response"
 msgstr ""
 
-#: src/settings-window.vala:141
+#: src/settings-window.vala:151
 msgid "Time in milliseconds; lower values react faster"
 msgstr ""
 

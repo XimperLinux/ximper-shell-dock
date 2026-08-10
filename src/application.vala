@@ -9,6 +9,7 @@ namespace XimperShellDock {
         private GenericArray<DockWindow> dock_windows;
         private GenericArray<DockTrigger> dock_triggers;
         private DockDBusService? dbus_service;
+        private bool activated = false;
 
         private OptionEntry[] options;
 
@@ -70,15 +71,10 @@ namespace XimperShellDock {
         }
 
         protected override void activate () {
-            if (dock_windows.length > 0) return;
+            if (activated) return;
+            activated = true;
 
-            // Create dock on each monitor
-            var display = Gdk.Display.get_default ();
-            var monitors = display.get_monitors ();
-            for (uint i = 0; i < monitors.get_n_items (); i++) {
-                var monitor = (Gdk.Monitor) monitors.get_item (i);
-                create_dock_for_monitor (monitor);
-            }
+            create_configured_docks ();
 
             setup_autohide ();
 
@@ -118,6 +114,40 @@ namespace XimperShellDock {
             });
             add_window (dock);
             dock_windows.add (dock);
+        }
+
+        public static string monitor_id (Gdk.Monitor monitor, uint index) {
+            var connector = monitor.get_connector ();
+            if (connector != null && connector.length > 0) return connector;
+            return "monitor-%u".printf (index);
+        }
+
+        private void create_configured_docks () {
+            var monitors = Gdk.Display.get_default ().get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var monitor = (Gdk.Monitor) monitors.get_item (i);
+                if (config.is_monitor_enabled (monitor_id (monitor, i))) {
+                    create_dock_for_monitor (monitor);
+                }
+            }
+        }
+
+        public void apply_monitor_selection () {
+            // A layer-shell surface cannot be moved safely between outputs;
+            // recreating the selected surfaces also keeps their exclusive
+            // zones and autohide hotspots consistent.
+            for (uint i = 0; i < dock_triggers.length; i++) {
+                remove_window (dock_triggers[i]);
+                dock_triggers[i].destroy ();
+            }
+            for (uint i = 0; i < dock_windows.length; i++) {
+                remove_window (dock_windows[i]);
+                dock_windows[i].destroy ();
+            }
+            dock_triggers = new GenericArray<DockTrigger> ();
+            dock_windows = new GenericArray<DockWindow> ();
+            create_configured_docks ();
+            setup_autohide ();
         }
 
         private void toggle_grid () {
@@ -216,20 +246,15 @@ namespace XimperShellDock {
                 if (dock_triggers.length == 0) {
                     for (uint i = 0; i < dock_windows.length; i++) {
                         var dock = dock_windows[i];
-                        var display = Gdk.Display.get_default ();
-                        var monitors = display.get_monitors ();
-                        if (i < monitors.get_n_items ()) {
-                            var monitor = (Gdk.Monitor) monitors.get_item (i);
-                            var trigger = new DockTrigger (this, monitor);
-                            trigger.trigger_activated.connect (() => {
-                                if (!dock.visible) {
-                                    dock.show_animated ();
-                                }
-                            });
-                            dock.set_trigger (trigger);
-                            add_window (trigger);
-                            dock_triggers.add (trigger);
-                        }
+                        var trigger = new DockTrigger (this, dock.monitor);
+                        trigger.trigger_activated.connect (() => {
+                            if (!dock.visible) {
+                                dock.show_animated ();
+                            }
+                        });
+                        dock.set_trigger (trigger);
+                        add_window (trigger);
+                        dock_triggers.add (trigger);
                     }
                 }
 

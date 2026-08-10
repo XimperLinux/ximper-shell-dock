@@ -44,6 +44,11 @@ namespace XimperShellDock {
         public int icon_size { get; set; default = 48; }
         public int layer { get; set; default = 2; }
         public string launcher_fallback { get; set; default = "wofi --show drun"; }
+        // Empty means every currently connected monitor.  This preserves the
+        // behaviour of configuration files written before monitor selection
+        // was introduced.
+        public GenericArray<string> monitor_ids;
+        private bool monitor_selection_explicit = false;
         public GenericArray<string> pinned_apps;
         // Ordered dock contents. App entries are stored as "app:<desktop-id>",
         // folders as "folder:<absolute-path>".  pinned_apps is retained as a
@@ -55,6 +60,7 @@ namespace XimperShellDock {
 
         public ConfigManager () {
             pinned_apps = new GenericArray<string> ();
+            monitor_ids = new GenericArray<string> ();
             dock_items = new GenericArray<string> ();
             dock_folders = new GenericArray<DockFolderConfig> ();
 
@@ -99,6 +105,15 @@ namespace XimperShellDock {
                     layer = (int) root.get_int_member ("layer");
                 if (root.has_member ("launcher_fallback"))
                     launcher_fallback = root.get_string_member ("launcher_fallback");
+
+                if (root.has_member ("monitors")) {
+                    monitor_selection_explicit = true;
+                    monitor_ids = new GenericArray<string> ();
+                    var monitors = root.get_array_member ("monitors");
+                    monitors.foreach_element ((array, i, node) => {
+                        monitor_ids.add (node.get_string ());
+                    });
+                }
 
                 if (root.has_member ("pinned_apps")) {
                     pinned_apps = new GenericArray<string> ();
@@ -169,6 +184,14 @@ namespace XimperShellDock {
             builder.add_int_value (layer);
             builder.set_member_name ("launcher_fallback");
             builder.add_string_value (launcher_fallback);
+            if (monitor_selection_explicit) {
+                builder.set_member_name ("monitors");
+                builder.begin_array ();
+                for (uint i = 0; i < monitor_ids.length; i++) {
+                    builder.add_string_value (monitor_ids[i]);
+                }
+                builder.end_array ();
+            }
             builder.set_member_name ("pinned_apps");
             builder.begin_array ();
             sync_pinned_apps ();
@@ -229,6 +252,21 @@ namespace XimperShellDock {
 
         public static string app_item (string desktop_id) {
             return "app:" + desktop_id;
+        }
+
+        public bool is_monitor_enabled (string monitor_id) {
+            // An absent setting means "all monitors", which is also the
+            // backwards-compatible default for existing users.
+            if (monitor_ids.length == 0) return true;
+            for (uint i = 0; i < monitor_ids.length; i++) {
+                if (monitor_ids[i] == monitor_id) return true;
+            }
+            return false;
+        }
+
+        public void set_monitor_ids (GenericArray<string> ids) {
+            monitor_ids = ids;
+            monitor_selection_explicit = true;
         }
 
         public static bool is_app_item (string item) {

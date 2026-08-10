@@ -144,7 +144,7 @@ namespace XimperShellDock {
         public signal void grid_requested ();
 
         private weak Application app;
-        private Gdk.Monitor? monitor;
+        public Gdk.Monitor? monitor { get; private set; }
         private int niri_logical_monitor_width = 0;
         private Gtk.Box wave_surface;
         private Gtk.Box dock_content;
