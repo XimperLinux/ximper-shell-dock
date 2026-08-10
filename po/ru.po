@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-10 18:33+0300\n"
+"POT-Creation-Date: 2026-08-11 02:10+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
 "Last-Translator: Ximper Shell contributors\n"
 "Language-Team: Russian\n"
@@ -31,55 +31,50 @@ msgid "Unpin app from dock"
 msgstr "Открепить приложение от дока"
 
 #. Pin/Unpin
-#: src/dock-icon.vala:310
+#: src/dock-icon.vala:314
 msgid "Unpin"
 msgstr "Открепить"
 
-#: src/dock-icon.vala:317
+#: src/dock-icon.vala:321
 msgid "Pin to Dock"
 msgstr "Закрепить в доке"
 
-#: src/dock-icon.vala:328
+#: src/dock-icon.vala:332
 msgid "Quit"
 msgstr "Закрыть"
 
-#: src/dock-window.vala:542
+#: src/dock-window.vala:550
 msgid "Applications"
 msgstr "Приложения"
 
-#: src/dock-window.vala:762
+#: src/dock-window.vala:770
 msgid "Settings"
 msgstr "Настройки"
 
-#: src/dock-window.vala:771
+#: src/dock-window.vala:779
 msgid "Add Folder…"
 msgstr "Добавить папку…"
 
+#. A native GTK chooser replaces the old hand-made path popover:
+#. it validates the selected folder and follows platform portal
+#. integration automatically.
 #: src/dock-window.vala:812
 msgid "Add Folder to Dock"
 msgstr "Добавить папку в док"
 
-#: src/dock-window.vala:817
-msgid "Drag a folder from Files onto the Dock, or paste its path here."
-msgstr "Перетащите папку из «Файлов» в док или вставьте её путь сюда."
-
-#: src/dock-window.vala:830 src/trash-dock-icon.vala:183
-msgid "Cancel"
-msgstr "Отмена"
-
-#: src/dock-window.vala:834
+#: src/dock-window.vala:813
 msgid "Add Folder"
 msgstr "Добавить папку"
 
-#: src/folder-dock-icon.vala:147 src/folder-dock-icon.vala:283
+#: src/folder-dock-icon.vala:156 src/folder-dock-icon.vala:283
 msgid "Open in Files"
 msgstr "Открыть в «Файлах»"
 
-#: src/folder-dock-icon.vala:153
+#: src/folder-dock-icon.vala:162
 msgid "Stack Settings…"
 msgstr "Настройки стопки…"
 
-#: src/folder-dock-icon.vala:159
+#: src/folder-dock-icon.vala:168
 msgid "Remove from Dock"
 msgstr "Удалить из дока"
 
@@ -87,13 +82,21 @@ msgstr "Удалить из дока"
 msgid "Close Stack"
 msgstr "Закрыть стопку"
 
-#: src/folder-dock-icon.vala:345
+#: src/folder-dock-icon.vala:416
 msgid "Folder is empty"
 msgstr "Папка пуста"
 
-#: src/folder-dock-icon.vala:350
+#: src/folder-dock-icon.vala:421
 msgid "Folder is unavailable"
 msgstr "Папка недоступна"
+
+#: src/folder-dock-icon.vala:571
+msgid "Remove from Favorites"
+msgstr "Удалить из избранного"
+
+#: src/folder-dock-icon.vala:571
+msgid "Add to Favorites"
+msgstr "Добавить в избранное"
 
 #: src/folder-settings-window.vala:13
 msgid "Stack Settings"
@@ -125,8 +128,8 @@ msgid "Open as"
 msgstr "Открывать как"
 
 #: src/folder-settings-window.vala:37
-msgid "How the folder contents are displayed"
-msgstr "Способ отображения содержимого папки"
+msgid "Choose a clear, standard GTK layout"
+msgstr "Выберите понятный стандартный GTK-макет"
 
 #: src/folder-settings-window.vala:38
 msgid "Grid"
@@ -136,23 +139,59 @@ msgstr "Сетка"
 msgid "List"
 msgstr "Список"
 
-#: src/folder-settings-window.vala:38
-msgid "Fan"
-msgstr "Веер"
+#: src/folder-settings-window.vala:48
+msgid "Grid Layout"
+msgstr "Раскладка сетки"
 
-#: src/folder-settings-window.vala:50
+#: src/folder-settings-window.vala:49
+msgid "Controls apply when the folder is opened as a grid."
+msgstr "Настройки действуют, когда папка открыта в виде сетки."
+
+#: src/folder-settings-window.vala:52
+msgid "Columns"
+msgstr "Столбцы"
+
+#: src/folder-settings-window.vala:53
+msgid "Items in each row"
+msgstr "Элементов в каждой строке"
+
+#: src/folder-settings-window.vala:62
+msgid "Rows"
+msgstr "Строки"
+
+#: src/folder-settings-window.vala:63
+msgid "Visible rows before scrolling"
+msgstr "Видимых строк до прокрутки"
+
+#: src/folder-settings-window.vala:72
+msgid "Item Appearance"
+msgstr "Вид элементов"
+
+#: src/folder-settings-window.vala:73
+msgid "Applies to thumbnails and icons in both grid and list views."
+msgstr "Применяется к миниатюрам и значкам в сетке и списке."
+
+#: src/folder-settings-window.vala:76
+msgid "Item Size"
+msgstr "Размер элемента"
+
+#: src/folder-settings-window.vala:77
+msgid "Thumbnail and icon size in pixels"
+msgstr "Размер миниатюры и значка в пикселях"
+
+#: src/folder-settings-window.vala:86
 msgid "Sort by"
 msgstr "Сортировка"
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Name"
 msgstr "Имя"
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Date Modified"
 msgstr "Дата изменения"
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Kind"
 msgstr "Тип"
 
@@ -294,6 +333,10 @@ msgstr "Очистить корзину?"
 msgid "All items in Trash will be permanently deleted."
 msgstr "Все элементы из корзины будут удалены без возможности восстановления."
 
+#: src/trash-dock-icon.vala:183
+msgid "Cancel"
+msgstr "Отмена"
+
 #: src/trash-dock-icon.vala:187
 msgid "Empty Trash"
 msgstr "Очистить корзину"
@@ -301,3 +344,12 @@ msgstr "Очистить корзину"
 #: src/trash-dock-icon.vala:221
 msgid "Could not empty Trash."
 msgstr "Не удалось очистить корзину."
+
+#~ msgid "Drag a folder from Files onto the Dock, or paste its path here."
+#~ msgstr "Перетащите папку из «Файлов» в док или вставьте её путь сюда."
+
+#~ msgid "Grid Size"
+#~ msgstr "Размер сетки"
+
+#~ msgid "How the folder contents are displayed"
+#~ msgstr "Способ отображения содержимого папки"

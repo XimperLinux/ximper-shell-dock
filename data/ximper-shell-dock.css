@@ -75,23 +75,40 @@
     background: alpha(@accent_bg_color, 0.16);
 }
 
-.dock-folder-list-item {
-    min-width: 300px;
-    min-height: 34px;
-    padding: 4px 8px;
-    border-radius: 8px;
+.dock-folder-favorite {
+    background: alpha(@accent_bg_color, 0.10);
+    box-shadow: inset 0 0 0 1px alpha(@accent_bg_color, 0.35);
 }
 
+.dock-folder-list-item {
+    min-width: 320px;
+    min-height: 42px;
+    padding: 8px 10px;
+    border-radius: 0;
+}
+
+.dock-folder-list {
+    margin: 4px;
+    border: 1px solid alpha(@headerbar_shade_color, 0.45);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+
 .dock-folder-grid {
-    /* Keep the first row clear of the scrolled viewport edge. */
     margin: 6px 4px 4px;
 }
 
-.dock-folder-view {
-    /* Gtk.Popover already draws the Stack card. A second background here
-     * creates a visible double underlay. */
-    background: transparent;
+window.folder-stack-window {
+    background-color: @window_bg_color;
     border: none;
+    box-shadow: none;
+    border-radius: 12px;
+}
+
+.dock-folder-view {
+    background: transparent;
+    border-radius: 12px;
 }
 
 .dock-stack-preview {

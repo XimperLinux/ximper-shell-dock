@@ -18,7 +18,7 @@ Supports Hyprland and Niri through compositor helpers.
 - Dock width adapts to the monitor: icons shrink only when the configured size cannot fit.
 - Reorder application icons and Folder Stacks by dragging them; drop an application from the tile menu to pin it. Reorder feedback keeps a stable animated gap.
 - Add folders as Dock Stacks by dragging a directory from the file manager onto any part of the dock, or through the dock context menu.
-  Stack contents open as a scrollable grid, list, or fan; file previews use the system thumbnail cache and items can be dragged into other applications.
+  Stack contents open in a dedicated layer-shell surface as a configurable scrollable grid or list; file previews use the system thumbnail cache and items can be dragged into other applications.
 - Optional Trash at the end of the dock: open it with a click, move files there by dropping them, and empty it from its context menu. Its icon reflects whether Trash contains files.
 - Dock contents are kept in sync across all monitors as soon as applications or Folder Stacks are added, removed, or reordered.
 
@@ -133,10 +133,14 @@ Each `dock_folders` entry has an absolute `path` and optional presentation setti
 | Key | Values | Default | Description |
 |-----|--------|---------|-------------|
 | `display` | `"folder"`, `"stack"` | `"stack"` | Dock icon appearance |
-| `view` | `"grid"`, `"list"`, `"fan"` | `"grid"` | Layout when the folder is opened |
+| `view` | `"grid"`, `"list"` | `"grid"` | Layout when the folder is opened |
 | `sort` | `"name"`, `"modified"`, `"kind"` | `"name"` | Item ordering |
+| `columns` | `1`–`12` | `4` | Number of grid columns |
+| `rows` | `1`–`10` | `3` | Visible grid rows before scrolling |
+| `item_size` | `32`–`128` | `56` | Item icon size in pixels |
+| `favorites` | `string[]` | `[]` | Favourite item URIs, displayed first |
 
-Use the folder's context menu to change these options or remove the Stack. Folders are kept in their own section on the right side of the dock. Drag a directory onto an existing Folder Stack to insert it immediately after that Stack.
+Use the folder's context menu to change these options or remove the Stack. Right-click an item inside an open folder to add it to Favorites; favourites are always displayed first. Folders are kept in their own section on the right side of the dock. Drag a directory onto an existing Folder Stack to insert it immediately after that Stack.
 
 ### Trash
 

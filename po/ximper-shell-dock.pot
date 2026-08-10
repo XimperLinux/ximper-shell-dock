@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-10 18:33+0300\n"
+"POT-Creation-Date: 2026-08-11 02:10+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,55 +30,50 @@ msgid "Unpin app from dock"
 msgstr ""
 
 #. Pin/Unpin
-#: src/dock-icon.vala:310
+#: src/dock-icon.vala:314
 msgid "Unpin"
 msgstr ""
 
-#: src/dock-icon.vala:317
+#: src/dock-icon.vala:321
 msgid "Pin to Dock"
 msgstr ""
 
-#: src/dock-icon.vala:328
+#: src/dock-icon.vala:332
 msgid "Quit"
 msgstr ""
 
-#: src/dock-window.vala:542
+#: src/dock-window.vala:550
 msgid "Applications"
 msgstr ""
 
-#: src/dock-window.vala:762
+#: src/dock-window.vala:770
 msgid "Settings"
 msgstr ""
 
-#: src/dock-window.vala:771
+#: src/dock-window.vala:779
 msgid "Add Folder…"
 msgstr ""
 
+#. A native GTK chooser replaces the old hand-made path popover:
+#. it validates the selected folder and follows platform portal
+#. integration automatically.
 #: src/dock-window.vala:812
 msgid "Add Folder to Dock"
 msgstr ""
 
-#: src/dock-window.vala:817
-msgid "Drag a folder from Files onto the Dock, or paste its path here."
-msgstr ""
-
-#: src/dock-window.vala:830 src/trash-dock-icon.vala:183
-msgid "Cancel"
-msgstr ""
-
-#: src/dock-window.vala:834
+#: src/dock-window.vala:813
 msgid "Add Folder"
 msgstr ""
 
-#: src/folder-dock-icon.vala:147 src/folder-dock-icon.vala:283
+#: src/folder-dock-icon.vala:156 src/folder-dock-icon.vala:283
 msgid "Open in Files"
 msgstr ""
 
-#: src/folder-dock-icon.vala:153
+#: src/folder-dock-icon.vala:162
 msgid "Stack Settings…"
 msgstr ""
 
-#: src/folder-dock-icon.vala:159
+#: src/folder-dock-icon.vala:168
 msgid "Remove from Dock"
 msgstr ""
 
@@ -86,12 +81,20 @@ msgstr ""
 msgid "Close Stack"
 msgstr ""
 
-#: src/folder-dock-icon.vala:345
+#: src/folder-dock-icon.vala:416
 msgid "Folder is empty"
 msgstr ""
 
-#: src/folder-dock-icon.vala:350
+#: src/folder-dock-icon.vala:421
 msgid "Folder is unavailable"
+msgstr ""
+
+#: src/folder-dock-icon.vala:571
+msgid "Remove from Favorites"
+msgstr ""
+
+#: src/folder-dock-icon.vala:571
+msgid "Add to Favorites"
 msgstr ""
 
 #: src/folder-settings-window.vala:13
@@ -124,7 +127,7 @@ msgid "Open as"
 msgstr ""
 
 #: src/folder-settings-window.vala:37
-msgid "How the folder contents are displayed"
+msgid "Choose a clear, standard GTK layout"
 msgstr ""
 
 #: src/folder-settings-window.vala:38
@@ -135,23 +138,59 @@ msgstr ""
 msgid "List"
 msgstr ""
 
-#: src/folder-settings-window.vala:38
-msgid "Fan"
+#: src/folder-settings-window.vala:48
+msgid "Grid Layout"
 msgstr ""
 
-#: src/folder-settings-window.vala:50
+#: src/folder-settings-window.vala:49
+msgid "Controls apply when the folder is opened as a grid."
+msgstr ""
+
+#: src/folder-settings-window.vala:52
+msgid "Columns"
+msgstr ""
+
+#: src/folder-settings-window.vala:53
+msgid "Items in each row"
+msgstr ""
+
+#: src/folder-settings-window.vala:62
+msgid "Rows"
+msgstr ""
+
+#: src/folder-settings-window.vala:63
+msgid "Visible rows before scrolling"
+msgstr ""
+
+#: src/folder-settings-window.vala:72
+msgid "Item Appearance"
+msgstr ""
+
+#: src/folder-settings-window.vala:73
+msgid "Applies to thumbnails and icons in both grid and list views."
+msgstr ""
+
+#: src/folder-settings-window.vala:76
+msgid "Item Size"
+msgstr ""
+
+#: src/folder-settings-window.vala:77
+msgid "Thumbnail and icon size in pixels"
+msgstr ""
+
+#: src/folder-settings-window.vala:86
 msgid "Sort by"
 msgstr ""
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Name"
 msgstr ""
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Date Modified"
 msgstr ""
 
-#: src/folder-settings-window.vala:51
+#: src/folder-settings-window.vala:87
 msgid "Kind"
 msgstr ""
 
@@ -291,6 +330,10 @@ msgstr ""
 
 #: src/trash-dock-icon.vala:175
 msgid "All items in Trash will be permanently deleted."
+msgstr ""
+
+#: src/trash-dock-icon.vala:183
+msgid "Cancel"
 msgstr ""
 
 #: src/trash-dock-icon.vala:187

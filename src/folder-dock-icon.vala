@@ -1,5 +1,15 @@
 namespace XimperShellDock {
 
+    private class FolderListItem : Object {
+        public File file;
+        public FileInfo info;
+
+        public FolderListItem (File file, FileInfo info) {
+            this.file = file;
+            this.info = info;
+        }
+    }
+
     public class FolderDockIcon : Gtk.Box {
 
         private const int MAX_STACK_ITEMS = 256;
@@ -13,13 +23,13 @@ namespace XimperShellDock {
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
         private static Gtk.Popover? active_popover = null;
-        private uint stack_hide_timeout_id = 0;
-        private bool stack_drag_active = false;
 
         public signal void remove_requested (string folder_path);
         public signal void settings_requested (string folder_path);
         public signal void popover_state_changed (bool open);
+        public signal void stack_requested (FolderDockIcon folder);
         public signal void drag_state_changed (bool active);
+        public signal void favorites_changed ();
 
         public FolderDockIcon (DockFolderConfig folder_config, int icon_size) {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
@@ -35,7 +45,7 @@ namespace XimperShellDock {
             image = new Gtk.Image.from_icon_name ("folder-open");
             update_folder_presentation ();
             button.tooltip_text = Path.get_basename (folder_path);
-            button.clicked.connect (() => { open_folder_popover (); });
+            button.clicked.connect (() => { stack_requested (this); });
             append (button);
 
             var indicator_space = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
@@ -243,27 +253,7 @@ namespace XimperShellDock {
             }
         }
 
-        private void open_folder_popover () {
-            if (active_popover != null) active_popover.popdown ();
-            var popover = new Gtk.Popover ();
-            popover.set_parent (button);
-            popover.has_arrow = true;
-            // A Stack is a file browser, not a menu. An autohiding popover
-            // owns a Wayland input grab, which prevents its drag source from
-            // negotiating with windows outside the dock.
-            popover.autohide = false;
-            popover.position = Gtk.PositionType.TOP;
-            popover.add_css_class ("dock-folder-popover");
-
-            // The Stack cannot use Gtk.Popover autohide: that takes a Wayland
-            // input grab and blocks DnD to other applications. Recreate the
-            // expected behaviour locally, while keeping the surface free for
-            // external drag targets.
-            var stack_motion = new Gtk.EventControllerMotion ();
-            stack_motion.enter.connect ((x, y) => { cancel_stack_hide (); });
-            stack_motion.leave.connect (() => { schedule_stack_hide (popover); });
-            ((Gtk.Widget) popover).add_controller (stack_motion);
-
+        public Gtk.Widget create_stack_content (FolderStackWindow stack_window) {
             var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
             box.add_css_class ("dock-folder-view");
             box.margin_top = 10;
@@ -282,43 +272,104 @@ namespace XimperShellDock {
             open_header.add_css_class ("flat");
             open_header.tooltip_text = _("Open in Files");
             open_header.clicked.connect (() => {
-                popover.popdown ();
+                stack_window.close_stack ();
                 open_in_file_manager ();
             });
             header.append (open_header);
             var close_header = new Gtk.Button.from_icon_name ("window-close-symbolic");
             close_header.add_css_class ("flat");
             close_header.tooltip_text = _("Close Stack");
-            close_header.clicked.connect (() => { popover.popdown (); });
+            close_header.clicked.connect (() => { stack_window.close_stack (); });
             header.append (close_header);
             box.append (header);
 
             if (folder_config.view_type == "list") {
-                var list = new Gtk.Box (Gtk.Orientation.VERTICAL, 2);
-                populate_folder_contents (list, true);
-                append_scrollable_contents (box, list);
+                append_scrollable_contents (box, create_folder_list_view ());
             } else {
                 var flow = new Gtk.FlowBox ();
                 flow.selection_mode = Gtk.SelectionMode.NONE;
-                flow.max_children_per_line = folder_config.view_type == "fan" ? 7 : 4;
-                flow.min_children_per_line = folder_config.view_type == "fan" ? 5 : 4;
+                flow.max_children_per_line = folder_config.grid_columns;
+                flow.min_children_per_line = folder_config.grid_columns;
                 flow.homogeneous = true;
                 flow.add_css_class ("dock-folder-grid");
-                if (folder_config.view_type == "fan") flow.add_css_class ("dock-folder-fan");
                 populate_folder_contents (flow, false);
                 append_scrollable_contents (box, flow);
             }
 
-            popover.set_child (box);
-            popover.closed.connect (() => {
-                cancel_stack_hide ();
-                popover_state_changed (false);
-                if (active_popover == popover) active_popover = null;
-                popover.unparent ();
+            return box;
+        }
+
+        public int get_stack_width () {
+            if (folder_config.view_type == "list")
+                return int.max (420, folder_config.item_size + 300);
+            return folder_config.grid_columns * int.max (folder_config.item_size + 32, 124) + 40;
+        }
+
+        public int get_stack_height () {
+            if (folder_config.view_type == "list")
+                return int.min (folder_config.grid_rows * (folder_config.item_size + 18) + 88, 720);
+            return int.min (folder_config.grid_rows * (folder_config.item_size + 56) + 88, 720);
+        }
+
+        private Gtk.ListView create_folder_list_view () {
+            var store = new GLib.ListStore (typeof (FolderListItem));
+            var folder = File.new_for_path (folder_path);
+            try {
+                var enumerator = folder.enumerate_children (
+                    "standard::name,standard::display-name,standard::icon,standard::content-type,time::modified",
+                    FileQueryInfoFlags.NOFOLLOW_SYMLINKS
+                );
+                var entries = new GenericArray<FileInfo> ();
+                while (entries.length < MAX_STACK_ITEMS) {
+                    var info = enumerator.next_file ();
+                    if (info == null) break;
+                    entries.add (info);
+                }
+                enumerator.close ();
+                sort_folder_entries (entries);
+                append_list_favorites (store, folder, entries);
+                for (uint i = 0; i < entries.length; i++) {
+                    var file = folder.get_child (entries[i].get_name ());
+                    if (!is_favorite (file.get_uri ()))
+                        store.append (new FolderListItem (file, entries[i]));
+                }
+            } catch (Error e) {
+                warning ("Cannot list folder %s: %s", folder_path, e.message);
+            }
+
+            var factory = new Gtk.SignalListItemFactory ();
+            factory.bind.connect ((object) => {
+                var list_item = object as Gtk.ListItem;
+                var entry = list_item.get_item () as FolderListItem;
+                if (entry == null) return;
+                var button = make_file_button (entry.file, entry.info, true);
+                setup_file_drag (button, entry.file);
+                list_item.set_child (button);
             });
-            popover_state_changed (true);
-            active_popover = popover;
-            popover.popup ();
+            factory.unbind.connect ((object) => {
+                var list_item = object as Gtk.ListItem;
+                if (list_item != null) list_item.set_child (null);
+            });
+
+            var view = new Gtk.ListView (new Gtk.NoSelection (store), factory);
+            view.show_separators = true;
+            view.single_click_activate = false;
+            view.add_css_class ("dock-folder-list");
+            return view;
+        }
+
+        private void append_list_favorites (GLib.ListStore store, File folder,
+                                            GenericArray<FileInfo> entries) {
+            for (uint favorite = 0; favorite < folder_config.favorite_uris.length; favorite++) {
+                var uri = folder_config.favorite_uris[favorite];
+                for (uint i = 0; i < entries.length; i++) {
+                    var file = folder.get_child (entries[i].get_name ());
+                    if (file.get_uri () == uri) {
+                        store.append (new FolderListItem (file, entries[i]));
+                        break;
+                    }
+                }
+            }
         }
 
         private void populate_folder_contents (Gtk.Widget container, bool list) {
@@ -336,8 +387,22 @@ namespace XimperShellDock {
                 }
                 enumerator.close ();
                 sort_folder_entries (entries);
+                // Favourites are shown first, in the explicit order selected
+                // by the user. They are not duplicated in the normal list.
+                for (uint favorite = 0; favorite < folder_config.favorite_uris.length; favorite++) {
+                    var uri = folder_config.favorite_uris[favorite];
+                    for (uint i = 0; i < entries.length; i++) {
+                        var child = folder.get_child (entries[i].get_name ());
+                        if (child.get_uri () == uri) {
+                            append_folder_child (container,
+                                make_file_button (child, entries[i], list), child);
+                            break;
+                        }
+                    }
+                }
                 for (uint i = 0; i < entries.length; i++) {
                     var child = folder.get_child (entries[i].get_name ());
+                    if (is_favorite (child.get_uri ())) continue;
                     append_folder_child (container,
                         make_file_button (child, entries[i], list), child);
                 }
@@ -371,14 +436,20 @@ namespace XimperShellDock {
             // monitor. Extra items scroll within this fixed visual envelope.
             var scroll = new Gtk.ScrolledWindow ();
             int viewport_width = 320;
-            if (contents is Gtk.FlowBox) viewport_width = 360;
+            int viewport_height = 380;
+            if (contents is Gtk.FlowBox) {
+                int cell_width = int.max (folder_config.item_size + 32, 124);
+                int cell_height = folder_config.item_size + 56;
+                viewport_width = folder_config.grid_columns * cell_width + 20;
+                viewport_height = folder_config.grid_rows * cell_height + 20;
+            }
             scroll.hscrollbar_policy = Gtk.PolicyType.NEVER;
             scroll.vscrollbar_policy = Gtk.PolicyType.AUTOMATIC;
-            scroll.set_size_request (viewport_width, 380);
+            scroll.set_size_request (viewport_width, viewport_height);
             scroll.max_content_width = viewport_width;
-            scroll.max_content_height = 380;
+            scroll.max_content_height = viewport_height;
             scroll.min_content_width = viewport_width;
-            scroll.min_content_height = 160;
+            scroll.min_content_height = int.min (viewport_height, 160);
             scroll.propagate_natural_width = false;
             scroll.propagate_natural_height = false;
             scroll.set_child (contents);
@@ -416,21 +487,45 @@ namespace XimperShellDock {
             button.add_css_class ("dock-folder-item");
             if (list) button.add_css_class ("dock-folder-list-item");
             button.tooltip_text = info.get_display_name ();
-            var box = new Gtk.Box (list ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL, 3);
-            int preview_size = list ? 24 : 56;
+            var box = new Gtk.Box (list ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL,
+                                   list ? 10 : 3);
+            int preview_size = folder_config.item_size;
             var content_type = info.get_content_type () ?? "";
+            Gtk.Widget visual;
             if (content_type.has_prefix ("image/")) {
-                box.append (make_preview_widget (file, info, preview_size));
+                visual = make_preview_widget (file, info, preview_size);
             } else {
-                var file_icon = new Gtk.Image ();
-                file_icon.gicon = info.get_icon ();
-                file_icon.pixel_size = preview_size;
-                box.append (file_icon);
+                visual = make_file_icon_widget (
+                    info.get_icon (), preview_size
+                );
+            }
+            if (list) {
+                // Thumbnails preserve their aspect ratio and therefore have
+                // a wider natural size than themed MIME icons. A fixed slot
+                // keeps every list row aligned while the icon stays legible.
+                var visual_slot = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+                visual_slot.set_size_request (int.max (preview_size, 88), preview_size);
+                visual_slot.halign = Gtk.Align.START;
+                visual.halign = Gtk.Align.CENTER;
+                visual.valign = Gtk.Align.CENTER;
+                visual_slot.append (visual);
+                box.append (visual_slot);
+            } else {
+                box.append (visual);
             }
             var label = new Gtk.Label (info.get_display_name ());
-            label.width_chars = list ? 20 : 9;
-            label.max_width_chars = list ? 28 : 9;
+            label.width_chars = list ? 20 : 13;
+            label.max_width_chars = list ? 36 : 13;
             label.ellipsize = Pango.EllipsizeMode.END;
+            label.hexpand = list;
+            label.halign = Gtk.Align.START;
+            if (!list) {
+                label.wrap = true;
+                label.wrap_mode = Pango.WrapMode.WORD_CHAR;
+                label.lines = 2;
+                label.justify = Gtk.Justification.CENTER;
+                label.halign = Gtk.Align.CENTER;
+            }
             box.append (label);
             button.set_child (box);
             button.clicked.connect (() => {
@@ -440,7 +535,62 @@ namespace XimperShellDock {
                     warning ("Cannot open %s: %s", file.get_uri (), e.message);
                 }
             });
+            if (!list) {
+                button.set_size_request (int.max (folder_config.item_size + 28, 120),
+                                         folder_config.item_size + 52);
+            }
+            if (is_favorite (file.get_uri ()))
+                button.add_css_class ("dock-folder-favorite");
+            setup_file_context_menu (button, file);
             return button;
+        }
+
+        private bool is_favorite (string uri) {
+            for (uint i = 0; i < folder_config.favorite_uris.length; i++) {
+                if (folder_config.favorite_uris[i] == uri) return true;
+            }
+            return false;
+        }
+
+        private void setup_file_context_menu (Gtk.Button button, File file) {
+            var gesture = new Gtk.GestureClick ();
+            gesture.button = Gdk.BUTTON_SECONDARY;
+            gesture.pressed.connect ((n_press, x, y) => {
+                var popover = new Gtk.Popover ();
+                popover.set_parent (button);
+                popover.has_arrow = true;
+                popover.autohide = true;
+                var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+                var favorite = new Gtk.Button.with_label (
+                    is_favorite (file.get_uri ()) ? _("Remove from Favorites") : _("Add to Favorites")
+                );
+                favorite.add_css_class ("flat");
+                favorite.halign = Gtk.Align.FILL;
+                favorite.clicked.connect (() => {
+                    toggle_favorite (file.get_uri ());
+                    popover.popdown ();
+                });
+                box.append (favorite);
+                popover.set_child (box);
+                popover.closed.connect (() => { popover.unparent (); });
+                popover.popup ();
+            });
+            button.add_controller (gesture);
+        }
+
+        private void toggle_favorite (string uri) {
+            var result = new GenericArray<string> ();
+            bool found = false;
+            for (uint i = 0; i < folder_config.favorite_uris.length; i++) {
+                if (folder_config.favorite_uris[i] == uri) {
+                    found = true;
+                } else {
+                    result.add (folder_config.favorite_uris[i]);
+                }
+            }
+            if (!found) result.add (uri);
+            folder_config.favorite_uris = result;
+            favorites_changed ();
         }
 
         // Match the established DockIcon DnD contract first: an ordinary
@@ -451,8 +601,6 @@ namespace XimperShellDock {
             source.set_actions (Gdk.DragAction.MOVE);
             source.set_content (new Gdk.ContentProvider.for_value (file.get_uri ()));
             source.drag_begin.connect ((drag) => {
-                stack_drag_active = true;
-                cancel_stack_hide ();
                 var snapshot = new Gtk.Snapshot ();
                 source_widget.snapshot (snapshot);
                 var paintable = snapshot.free_to_paintable (null);
@@ -460,34 +608,11 @@ namespace XimperShellDock {
                                  source_widget.get_height () / 2);
             });
             source.drag_cancel.connect ((drag, reason) => {
-                finish_stack_drag ();
                 return false;
             });
             source.drag_end.connect ((drag, delete_data) => {
-                finish_stack_drag ();
             });
             source_widget.add_controller (source);
-        }
-
-        private void schedule_stack_hide (Gtk.Popover popover) {
-            cancel_stack_hide ();
-            stack_hide_timeout_id = Timeout.add (350, () => {
-                stack_hide_timeout_id = 0;
-                if (!stack_drag_active) popover.popdown ();
-                return Source.REMOVE;
-            });
-        }
-
-        private void cancel_stack_hide () {
-            if (stack_hide_timeout_id == 0) return;
-            Source.remove (stack_hide_timeout_id);
-            stack_hide_timeout_id = 0;
-        }
-
-        private void finish_stack_drag () {
-            stack_drag_active = false;
-            cancel_stack_hide ();
-            if (active_popover != null) active_popover.popdown ();
         }
 
         private Gtk.Widget make_preview_widget (File file, FileInfo info, int size) {
@@ -499,19 +624,38 @@ namespace XimperShellDock {
                 picture.add_css_class ("dock-folder-thumbnail");
                 return picture;
             }
-            var icon = new Gtk.Image ();
-            icon.gicon = info.get_icon ();
-            icon.pixel_size = size;
-            return icon;
+            // Image files without a cached thumbnail must use the exact same
+            // sized icon path as non-image files. Otherwise they fall back to
+            // Gtk.Image's tiny theme size regardless of the list setting.
+            return make_file_icon_widget (info.get_icon (), size);
+        }
+
+        private Gtk.Widget make_file_icon_widget (Icon icon, int size) {
+            var theme = Gtk.IconTheme.get_for_display (Gdk.Display.get_default ());
+            var paintable = theme.lookup_by_gicon (
+                icon, size, get_scale_factor (), get_direction (), Gtk.IconLookupFlags.PRELOAD
+            );
+            var picture = new Gtk.Picture.for_paintable (paintable);
+            picture.set_size_request (size, size);
+            picture.content_fit = Gtk.ContentFit.CONTAIN;
+            picture.can_shrink = true;
+            return picture;
         }
 
         private File? get_cached_thumbnail (File file) {
             var uri = file.get_uri ();
             var digest = Checksum.compute_for_string (ChecksumType.MD5, uri);
-            var path = Path.build_filename (
-                Environment.get_user_cache_dir (), "thumbnails", "normal", digest + ".png"
-            );
-            return FileUtils.test (path, FileTest.EXISTS) ? File.new_for_path (path) : null;
+            // File managers choose their cache bucket independently. In
+            // particular, this folder has only 256px thumbnails in `large`;
+            // looking at `normal` alone incorrectly reports no preview.
+            string[] buckets = { "normal", "large" };
+            for (int i = 0; i < buckets.length; i++) {
+                var path = Path.build_filename (
+                    Environment.get_user_cache_dir (), "thumbnails", buckets[i], digest + ".png"
+                );
+                if (FileUtils.test (path, FileTest.EXISTS)) return File.new_for_path (path);
+            }
+            return null;
         }
 
         private void open_in_file_manager () {

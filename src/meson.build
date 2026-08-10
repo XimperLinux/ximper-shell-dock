@@ -20,6 +20,7 @@ dock_sources = files(
   'dock-icon.vala',
   'trash-dock-icon.vala',
   'folder-dock-icon.vala',
+  'folder-stack-window.vala',
   'folder-settings-window.vala',
   'dock-trigger.vala',
   'layer-shell-helper.vala',

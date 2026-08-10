@@ -5,13 +5,25 @@ namespace XimperShellDock {
         public string display_type;
         public string view_type;
         public string sort_type;
+        // These are deliberately plain fields: GenericArray properties are
+        // not safe in Vala-generated GObject code.
+        public GenericArray<string> favorite_uris;
+        public int grid_columns;
+        public int grid_rows;
+        public int item_size;
 
         public DockFolderConfig (string path, string display_type = "stack",
-                                 string view_type = "grid", string sort_type = "name") {
+                                 string view_type = "grid", string sort_type = "name",
+                                 int grid_columns = 4, int grid_rows = 3,
+                                 int item_size = 56) {
             this.path = path;
             this.display_type = display_type;
-            this.view_type = view_type;
+            this.view_type = view_type == "list" ? "list" : "grid";
             this.sort_type = sort_type;
+            this.grid_columns = grid_columns.clamp (1, 12);
+            this.grid_rows = grid_rows.clamp (1, 10);
+            this.item_size = item_size.clamp (32, 128);
+            favorite_uris = new GenericArray<string> ();
         }
     }
 
@@ -139,12 +151,24 @@ namespace XimperShellDock {
                     folders.foreach_element ((array, i, node) => {
                         var folder = node.get_object ();
                         if (!folder.has_member ("path")) return;
-                        dock_folders.add (new DockFolderConfig (
+                        var config = new DockFolderConfig (
                             folder.get_string_member ("path"),
                             folder.has_member ("display") ? folder.get_string_member ("display") : "stack",
                             folder.has_member ("view") ? folder.get_string_member ("view") : "grid",
-                            folder.has_member ("sort") ? folder.get_string_member ("sort") : "name"
-                        ));
+                            folder.has_member ("sort") ? folder.get_string_member ("sort") : "name",
+                            folder.has_member ("columns") ? (int) folder.get_int_member ("columns") : 4,
+                            folder.has_member ("rows") ? (int) folder.get_int_member ("rows") : 3,
+                            folder.has_member ("item_size") ? (int) folder.get_int_member ("item_size") : 56
+                        );
+                        if (folder.has_member ("favorites")) {
+                            var favorites = folder.get_array_member ("favorites");
+                            favorites.foreach_element ((array, index, item) => {
+                                var uri = item.get_string ();
+                                if (uri != null && uri.length > 0)
+                                    config.favorite_uris.add (uri);
+                            });
+                        }
+                        dock_folders.add (config);
                     });
                 }
                 migrate_legacy_folder_items ();
@@ -213,6 +237,18 @@ namespace XimperShellDock {
                 builder.add_string_value (folder.view_type);
                 builder.set_member_name ("sort");
                 builder.add_string_value (folder.sort_type);
+                builder.set_member_name ("columns");
+                builder.add_int_value (folder.grid_columns);
+                builder.set_member_name ("rows");
+                builder.add_int_value (folder.grid_rows);
+                builder.set_member_name ("item_size");
+                builder.add_int_value (folder.item_size);
+                builder.set_member_name ("favorites");
+                builder.begin_array ();
+                for (uint j = 0; j < folder.favorite_uris.length; j++) {
+                    builder.add_string_value (folder.favorite_uris[j]);
+                }
+                builder.end_array ();
                 builder.end_object ();
             }
             builder.end_array ();

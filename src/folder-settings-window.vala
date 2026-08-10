@@ -12,7 +12,7 @@ namespace XimperShellDock {
             this.folder = folder;
             title = _("Stack Settings");
             default_width = 420;
-            default_height = 360;
+            default_height = 520;
             modal = false;
 
             var page = new Adw.PreferencesPage ();
@@ -34,17 +34,53 @@ namespace XimperShellDock {
 
             var view = new Adw.ComboRow ();
             view.title = _("Open as");
-            view.subtitle = _("How the folder contents are displayed");
-            view.model = new Gtk.StringList ({_("Grid"), _("List"), _("Fan")});
+            view.subtitle = _("Choose a clear, standard GTK layout");
+            view.model = new Gtk.StringList ({_("Grid"), _("List")});
             if (folder.view_type == "list") view.selected = 1;
-            else if (folder.view_type == "fan") view.selected = 2;
             else view.selected = 0;
             view.notify["selected"].connect (() => {
-                folder.view_type = view.selected == 1 ? "list" :
-                    (view.selected == 2 ? "fan" : "grid");
+                folder.view_type = view.selected == 1 ? "list" : "grid";
                 save_changes ();
             });
             group.add (view);
+
+            var layout_group = new Adw.PreferencesGroup ();
+            layout_group.title = _("Grid Layout");
+            layout_group.description = _("Controls apply when the folder is opened as a grid.");
+
+            var columns = new Adw.SpinRow.with_range (1, 12, 1);
+            columns.title = _("Columns");
+            columns.subtitle = _("Items in each row");
+            columns.value = folder.grid_columns;
+            columns.notify["value"].connect (() => {
+                folder.grid_columns = ((int) columns.value).clamp (1, 12);
+                save_changes ();
+            });
+            layout_group.add (columns);
+
+            var rows = new Adw.SpinRow.with_range (1, 10, 1);
+            rows.title = _("Rows");
+            rows.subtitle = _("Visible rows before scrolling");
+            rows.value = folder.grid_rows;
+            rows.notify["value"].connect (() => {
+                folder.grid_rows = ((int) rows.value).clamp (1, 10);
+                save_changes ();
+            });
+            layout_group.add (rows);
+
+            var item_group = new Adw.PreferencesGroup ();
+            item_group.title = _("Item Appearance");
+            item_group.description = _("Applies to thumbnails and icons in both grid and list views.");
+
+            var item_size = new Adw.SpinRow.with_range (32, 128, 4);
+            item_size.title = _("Item Size");
+            item_size.subtitle = _("Thumbnail and icon size in pixels");
+            item_size.value = folder.item_size;
+            item_size.notify["value"].connect (() => {
+                folder.item_size = ((int) item_size.value).clamp (32, 128);
+                save_changes ();
+            });
+            item_group.add (item_size);
 
             var sort = new Adw.ComboRow ();
             sort.title = _("Sort by");
@@ -60,6 +96,8 @@ namespace XimperShellDock {
             group.add (sort);
 
             page.add (group);
+            page.add (layout_group);
+            page.add (item_group);
             add (page);
         }
 

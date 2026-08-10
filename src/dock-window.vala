@@ -154,6 +154,7 @@ namespace XimperShellDock {
         private Gtk.Separator folder_separator;
         private Gtk.Box folder_box;
         private Gtk.Box trash_box;
+        private FolderStackWindow? folder_stack_window;
         private DockItemGapController app_drag_gaps;
         private DockItemGapController folder_drag_gaps;
         // The compositor reports focus changes much more often than the set
@@ -195,6 +196,7 @@ namespace XimperShellDock {
 
         private int DOCK_HEIGHT = 64;
         private int effective_icon_size = 48;
+        private int floating_surface_left_margin = 0;
         private const int HIDE_DELAY_MS = 300;
         private const int SHOW_GRACE_MS = 600;
         // Below this, the button's target becomes too small to use reliably.
@@ -224,6 +226,12 @@ namespace XimperShellDock {
             apply_mode ();
 
             build_ui ();
+            folder_stack_window = new FolderStackWindow (monitor);
+            folder_stack_window.state_changed.connect ((open) => {
+                popover_open = open;
+                if (open) cancel_hide ();
+                else if (autohide_enabled) schedule_hide ();
+            });
             populate_icons ();
 
             app.config.notify["icon-size"].connect (() => {
@@ -348,6 +356,8 @@ namespace XimperShellDock {
             LayerShellHelper.apply_dock_mode (
                 this, app.config.dock_mode, get_exclusive_zone_height ()
             );
+            if (app.config.dock_mode == DockMode.PINNED)
+                floating_surface_left_margin = 0;
             if (get_child () != null) {
                 dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
             }
@@ -805,61 +815,21 @@ namespace XimperShellDock {
         }
 
         private void choose_folder () {
-            // The native way is dragging a directory from the file manager.
-            // This is only a compact fallback for a pasted path.
-            var popover = new Gtk.Popover ();
-            popover.set_parent (main_box);
-            popover.has_arrow = true;
-            popover.position = Gtk.PositionType.TOP;
-
-            var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
-            box.margin_top = 10;
-            box.margin_bottom = 10;
-            box.margin_start = 10;
-            box.margin_end = 10;
-            var title = new Gtk.Label (_("Add Folder to Dock"));
-            title.add_css_class ("heading");
-            title.halign = Gtk.Align.START;
-            box.append (title);
-
-            var hint = new Gtk.Label (_("Drag a folder from Files onto the Dock, or paste its path here."));
-            hint.wrap = true;
-            hint.max_width_chars = 36;
-            hint.add_css_class ("dim-label");
-            hint.halign = Gtk.Align.START;
-            box.append (hint);
-            var path_entry = new Gtk.Entry ();
-            path_entry.placeholder_text = "/home/user/Documents";
-            path_entry.width_chars = 34;
-            box.append (path_entry);
-
-            var actions = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
-            actions.halign = Gtk.Align.END;
-            var cancel = new Gtk.Button.with_label (_("Cancel"));
-            cancel.add_css_class ("flat");
-            cancel.clicked.connect (() => { popover.popdown (); });
-            actions.append (cancel);
-            var add = new Gtk.Button.with_label (_("Add Folder"));
-            add.add_css_class ("suggested-action");
-            add.clicked.connect (() => {
-                if (path_entry.text.strip ().length == 0) return;
-                var folder = File.new_for_commandline_arg (path_entry.text.strip ());
-                if (folder.query_file_type (FileQueryInfoFlags.NONE) != FileType.DIRECTORY) return;
-                popover.popdown ();
-                add_folder_file (folder);
+            // A native GTK chooser replaces the old hand-made path popover:
+            // it validates the selected folder and follows platform portal
+            // integration automatically.
+            var chooser = new Gtk.FileDialog ();
+            chooser.title = _("Add Folder to Dock");
+            chooser.accept_label = _("Add Folder");
+            chooser.select_folder.begin (this, null, (object, result) => {
+                try {
+                    var folder = chooser.select_folder.end (result);
+                    add_folder_file (folder);
+                } catch (Error e) {
+                    if (!(e is IOError.CANCELLED))
+                        warning ("Failed to select folder: %s", e.message);
+                }
             });
-            actions.append (add);
-            box.append (actions);
-
-            popover.set_child (box);
-            popover_open = true;
-            cancel_hide ();
-            popover.closed.connect (() => {
-                popover_open = false;
-                popover.unparent ();
-                if (autohide_enabled) schedule_hide ();
-            });
-            popover.popup ();
         }
 
         private void add_folder_file (File folder, int insert_folder_position = -1) {
@@ -975,6 +945,7 @@ namespace XimperShellDock {
             int monitor_width = get_monitor_width ();
             if (monitor_width <= 0) return;
             int side_margin = int.max ((monitor_width - content_width) / 2, 0);
+            floating_surface_left_margin = side_margin;
             GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, side_margin);
             GtkLayerShell.set_margin (this, GtkLayerShell.Edge.RIGHT, side_margin);
         }
@@ -1291,15 +1262,17 @@ namespace XimperShellDock {
                     if (config == null) return;
                     var settings = new FolderSettingsWindow (app.config, config);
                     settings.changed.connect (() => {
+                        if (folder_stack_window != null) folder_stack_window.close_stack ();
                         populate_icons ();
                         update_indicators ();
                     });
                     settings.present ();
                 });
-                folder.popover_state_changed.connect ((open) => {
-                    popover_open = open;
-                    if (open) cancel_hide ();
-                    else if (autohide_enabled) schedule_hide ();
+                folder.favorites_changed.connect (() => {
+                    app.config.save ();
+                });
+                folder.stack_requested.connect ((icon) => {
+                    open_folder_stack (icon);
                 });
                 folder.drag_state_changed.connect ((active) => {
                     item_drag_active = active;
@@ -1338,6 +1311,23 @@ namespace XimperShellDock {
             trash_box.visible = app.config.show_trash;
             folder_separator.visible = has_folders || app.config.show_trash;
             update_icon_sizes_to_fit ();
+        }
+
+        private void open_folder_stack (FolderDockIcon folder) {
+            if (folder_stack_window == null) return;
+            Graphene.Rect bounds;
+            if (!folder.compute_bounds (this, out bounds)) return;
+
+            int width = folder.get_stack_width ();
+            int monitor_width = get_monitor_width ();
+            int center = floating_surface_left_margin +
+                (int) (bounds.origin.x + bounds.size.width / 2.0f);
+            int left = int.max (center - width / 2, 0);
+            if (monitor_width > 0) left = int.min (left, int.max (monitor_width - width, 0));
+
+            int bottom = get_exclusive_zone_height ();
+            if (app.config.dock_mode == DockMode.FLOATING) bottom += 16;
+            folder_stack_window.present_folder (folder, left, bottom);
         }
 
         // ── DnD gap management ──────────────────────────────────
