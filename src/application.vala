@@ -248,9 +248,7 @@ namespace XimperShellDock {
                         var dock = dock_windows[i];
                         var trigger = new DockTrigger (this, dock.monitor);
                         trigger.trigger_activated.connect (() => {
-                            if (!dock.visible) {
-                                dock.show_animated ();
-                            }
+                            dock.reveal_from_trigger ();
                         });
                         dock.set_trigger (trigger);
                         add_window (trigger);

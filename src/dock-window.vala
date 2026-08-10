@@ -199,6 +199,7 @@ namespace XimperShellDock {
         private int floating_surface_left_margin = 0;
         private const int HIDE_DELAY_MS = 300;
         private const int SHOW_GRACE_MS = 600;
+        private const int FLOATING_BOTTOM_MARGIN = 8;
         // Below this, the button's target becomes too small to use reliably.
         private const int MIN_ICON_SIZE = 16;
         private const int FLOATING_SIDE_MARGIN = 16;
@@ -398,6 +399,33 @@ namespace XimperShellDock {
             anim.play ();
         }
 
+        // The edge hotspot is flush with the bottom of the output.  While
+        // revealing an autohidden floating dock, remove its normal visual
+        // margin so the pointer can move into the dock without crossing an
+        // input gap.  This also invalidates a fade-out that may still be in
+        // flight when the pointer returns to the hotspot.
+        public void reveal_from_trigger () {
+            if (app.config.dock_mode != DockMode.FLOATING) return;
+
+            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.BOTTOM, 0);
+            cancel_hide ();
+            visibility_animation_generation++;
+            show_timestamp = GLib.get_monotonic_time () / 1000;
+
+            if (!visible) {
+                set_visible (true);
+                opacity = 0;
+
+                var target = new Adw.PropertyAnimationTarget (this, "opacity");
+                var anim = new Adw.TimedAnimation (this, 0.0, 1.0, 200, target);
+                anim.play ();
+            } else {
+                // A previous hide animation may have made the dock mostly
+                // transparent even though its surface is still visible.
+                opacity = 1;
+            }
+        }
+
         public void hide_animated () {
             cursor_inside = false;
             uint generation = ++visibility_animation_generation;
@@ -407,6 +435,11 @@ namespace XimperShellDock {
                 if (generation != visibility_animation_generation || !autohide_enabled) return;
                 set_visible (false);
                 opacity = 1;
+                if (app.config.dock_mode == DockMode.FLOATING) {
+                    GtkLayerShell.set_margin (
+                        this, GtkLayerShell.Edge.BOTTOM, FLOATING_BOTTOM_MARGIN
+                    );
+                }
             });
             anim.play ();
         }
