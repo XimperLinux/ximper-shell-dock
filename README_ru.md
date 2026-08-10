@@ -93,8 +93,12 @@ ximper-shell-dock --unpin <desktop_id>
 
 Создайте `~/.config/ximper-shell/dock/style.css`, чтобы изменить внешний вид дока без редактирования установленных файлов. Эта таблица стилей загружается с пользовательским приоритетом и перекрывает правила из поставляемой таблицы. После изменения перезапустите Dock.
 
+Полный перечень доступных правил и хорошая основа для собственного файла — поставляемая таблица [`data/ximper-shell-dock.css`](data/ximper-shell-dock.css). В установленной системе она обычно находится по пути `/etc/xdg/ximper-shell/dock/style.css`.
+
 ```sh
 mkdir -p ~/.config/ximper-shell/dock
+cp /etc/xdg/ximper-shell/dock/style.css \
+  ~/.config/ximper-shell/dock/style.css
 ```
 
 Например, чтобы настроить фон дока и тень в плавающем режиме:

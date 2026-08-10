@@ -98,8 +98,14 @@ appearance without changing installed files. This stylesheet is loaded with
 user priority, so its rules take precedence over the bundled stylesheet. Restart
 the dock after editing it.
 
+The bundled stylesheet at [`data/ximper-shell-dock.css`](data/ximper-shell-dock.css) is the complete list of
+available rules and a good starting point. On an installed system it is normally
+available as `/etc/xdg/ximper-shell/dock/style.css`.
+
 ```sh
 mkdir -p ~/.config/ximper-shell/dock
+cp /etc/xdg/ximper-shell/dock/style.css \
+  ~/.config/ximper-shell/dock/style.css
 ```
 
 For example, to adjust the dock background and its floating shadow:
