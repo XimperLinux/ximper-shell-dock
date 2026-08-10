@@ -339,7 +339,15 @@ namespace XimperShellDock {
 
         public void apply_mode () {
             GtkLayerShell.set_layer (this, LayerShellHelper.parse_layer (app.config.layer));
-            LayerShellHelper.apply_dock_mode (this, app.config.dock_mode, DOCK_HEIGHT);
+            // DOCK_HEIGHT includes transparent headroom for hover
+            // magnification and launch bounce.  It must keep the layer
+            // surface large enough to draw those effects, but reserving that
+            // headroom pushes regular windows away from the dock.  Reserve
+            // only the physical dock bar so animated icons may overlap
+            // window content above it.
+            LayerShellHelper.apply_dock_mode (
+                this, app.config.dock_mode, get_exclusive_zone_height ()
+            );
             if (get_child () != null) {
                 dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
             }
@@ -984,6 +992,10 @@ namespace XimperShellDock {
                 height += (effective_icon_size * 55 + 99) / 100;
             }
             return height;
+        }
+
+        private int get_exclusive_zone_height () {
+            return effective_icon_size + 12;
         }
 
         private int get_wave_horizontal_reserve () {

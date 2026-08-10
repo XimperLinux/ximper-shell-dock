@@ -218,7 +218,11 @@ namespace XimperShellDock {
         }
 
         protected override void snapshot (Gtk.Snapshot snapshot) {
-            if (magnification == 1.0 && horizontal_offset == 0.0) {
+            // Launch bounce is independent of hover magnification.  Keep
+            // drawing through the transform path while it has a vertical
+            // offset, even when the icon has its normal scale.
+            if (magnification == 1.0 && horizontal_offset == 0.0 &&
+                vertical_bounce_offset == 0.0) {
                 base.snapshot (snapshot);
                 return;
             }
