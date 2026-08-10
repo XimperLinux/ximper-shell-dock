@@ -284,7 +284,7 @@ namespace XimperShellDock {
             box.append (header);
 
             if (folder_config.view_type == "list") {
-                append_scrollable_contents (box, create_folder_list_view ());
+                append_scrollable_contents (box, create_folder_list_view (stack_window));
             } else {
                 var flow = new Gtk.FlowBox ();
                 flow.selection_mode = Gtk.SelectionMode.NONE;
@@ -292,7 +292,7 @@ namespace XimperShellDock {
                 flow.min_children_per_line = folder_config.grid_columns;
                 flow.homogeneous = true;
                 flow.add_css_class ("dock-folder-grid");
-                populate_folder_contents (flow, false);
+                populate_folder_contents (flow, false, stack_window);
                 append_scrollable_contents (box, flow);
             }
 
@@ -311,7 +311,7 @@ namespace XimperShellDock {
             return int.min (folder_config.grid_rows * (folder_config.item_size + 56) + 88, 720);
         }
 
-        private Gtk.ListView create_folder_list_view () {
+        private Gtk.ListView create_folder_list_view (FolderStackWindow stack_window) {
             var store = new GLib.ListStore (typeof (FolderListItem));
             var folder = File.new_for_path (folder_path);
             try {
@@ -342,7 +342,7 @@ namespace XimperShellDock {
                 var list_item = object as Gtk.ListItem;
                 var entry = list_item.get_item () as FolderListItem;
                 if (entry == null) return;
-                var button = make_file_button (entry.file, entry.info, true);
+                var button = make_file_button (entry.file, entry.info, true, stack_window);
                 setup_file_drag (button, entry.file);
                 list_item.set_child (button);
             });
@@ -372,7 +372,8 @@ namespace XimperShellDock {
             }
         }
 
-        private void populate_folder_contents (Gtk.Widget container, bool list) {
+        private void populate_folder_contents (Gtk.Widget container, bool list,
+                                               FolderStackWindow stack_window) {
             var folder = File.new_for_path (folder_path);
             try {
                 var enumerator = folder.enumerate_children (
@@ -395,7 +396,7 @@ namespace XimperShellDock {
                         var child = folder.get_child (entries[i].get_name ());
                         if (child.get_uri () == uri) {
                             append_folder_child (container,
-                                make_file_button (child, entries[i], list), child);
+                                make_file_button (child, entries[i], list, stack_window), child);
                             break;
                         }
                     }
@@ -404,7 +405,7 @@ namespace XimperShellDock {
                     var child = folder.get_child (entries[i].get_name ());
                     if (is_favorite (child.get_uri ())) continue;
                     append_folder_child (container,
-                        make_file_button (child, entries[i], list), child);
+                        make_file_button (child, entries[i], list, stack_window), child);
                 }
                 if (entries.length == 0) {
                     var empty = new Gtk.Label (_("Folder is empty"));
@@ -481,7 +482,8 @@ namespace XimperShellDock {
             return strcmp (a.get_display_name (), b.get_display_name ());
         }
 
-        private Gtk.Widget make_file_button (File file, FileInfo info, bool list) {
+        private Gtk.Widget make_file_button (File file, FileInfo info, bool list,
+                                             FolderStackWindow stack_window) {
             var button = new Gtk.Button ();
             button.add_css_class ("flat");
             button.add_css_class ("dock-folder-item");
@@ -529,11 +531,7 @@ namespace XimperShellDock {
             box.append (label);
             button.set_child (box);
             button.clicked.connect (() => {
-                try {
-                    AppInfo.launch_default_for_uri (file.get_uri (), null);
-                } catch (Error e) {
-                    warning ("Cannot open %s: %s", file.get_uri (), e.message);
-                }
+                open_file (file, info);
             });
             if (!list) {
                 button.set_size_request (int.max (folder_config.item_size + 28, 120),
@@ -541,7 +539,7 @@ namespace XimperShellDock {
             }
             if (is_favorite (file.get_uri ()))
                 button.add_css_class ("dock-folder-favorite");
-            setup_file_context_menu (button, file);
+            setup_file_context_menu (button, file, stack_window);
             return button;
         }
 
@@ -552,7 +550,8 @@ namespace XimperShellDock {
             return false;
         }
 
-        private void setup_file_context_menu (Gtk.Button button, File file) {
+        private void setup_file_context_menu (Gtk.Button button, File file,
+                                              FolderStackWindow stack_window) {
             var gesture = new Gtk.GestureClick ();
             gesture.button = Gdk.BUTTON_SECONDARY;
             gesture.pressed.connect ((n_press, x, y) => {
@@ -567,12 +566,22 @@ namespace XimperShellDock {
                 favorite.add_css_class ("flat");
                 favorite.halign = Gtk.Align.FILL;
                 favorite.clicked.connect (() => {
-                    toggle_favorite (file.get_uri ());
                     popover.popdown ();
+                    // Rebuilding the stack while this popover is still
+                    // parented would invalidate its button. Run it after
+                    // GTK has completed popover teardown.
+                    Idle.add (() => {
+                        toggle_favorite (file.get_uri ());
+                        return Source.REMOVE;
+                    });
                 });
                 box.append (favorite);
                 popover.set_child (box);
-                popover.closed.connect (() => { popover.unparent (); });
+                popover.closed.connect (() => {
+                    stack_window.set_embedded_popover_open (false);
+                    popover.unparent ();
+                });
+                stack_window.set_embedded_popover_open (true);
                 popover.popup ();
             });
             button.add_controller (gesture);
@@ -640,6 +649,27 @@ namespace XimperShellDock {
             picture.content_fit = Gtk.ContentFit.CONTAIN;
             picture.can_shrink = true;
             return picture;
+        }
+
+        private void open_file (File file, FileInfo info) {
+            try {
+                var content_type = info.get_content_type ();
+                if (content_type == null) {
+                    warning ("Cannot determine the content type of %s", file.get_uri ());
+                    return;
+                }
+                var app_info = AppInfo.get_default_for_type (content_type, false);
+                if (app_info == null) {
+                    warning ("No application is registered for %s", content_type);
+                    return;
+                }
+                var uris = new List<string> ();
+                uris.append (file.get_uri ());
+                var context = Gdk.Display.get_default ().get_app_launch_context ();
+                app_info.launch_uris (uris, context);
+            } catch (Error e) {
+                warning ("Cannot open %s: %s", file.get_uri (), e.message);
+            }
         }
 
         private File? get_cached_thumbnail (File file) {

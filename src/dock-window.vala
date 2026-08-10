@@ -1270,6 +1270,8 @@ namespace XimperShellDock {
                 });
                 folder.favorites_changed.connect (() => {
                     app.config.save ();
+                    if (folder_stack_window != null)
+                        folder_stack_window.refresh_folder (folder);
                 });
                 folder.stack_requested.connect ((icon) => {
                     open_folder_stack (icon);
