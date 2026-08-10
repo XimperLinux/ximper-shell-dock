@@ -69,9 +69,13 @@ namespace XimperShellDock {
             autohide_row.title = _("Autohide");
             autohide_row.subtitle = _("Hide dock when not in use");
             autohide_row.active = app.config.autohide;
+            autohide_row.sensitive = app.config.dock_mode == DockMode.FLOATING;
             autohide_row.notify["active"].connect (() => {
                 app.config.autohide = autohide_row.active;
                 app.config.save ();
+            });
+            app.config.notify["dock-mode"].connect (() => {
+                autohide_row.sensitive = app.config.dock_mode == DockMode.FLOATING;
             });
             behavior_group.add (autohide_row);
 

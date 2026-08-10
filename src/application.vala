@@ -207,7 +207,12 @@ namespace XimperShellDock {
         }
 
         private void setup_autohide () {
-            if (config.autohide) {
+            // A pinned dock reserves screen space, so hiding it would leave
+            // an empty exclusive zone behind. Keep the user's preference for
+            // when they switch back to floating mode, but only enable the
+            // behavior while the dock is actually floating.
+            bool should_autohide = config.autohide && config.dock_mode == DockMode.FLOATING;
+            if (should_autohide) {
                 if (dock_triggers.length == 0) {
                     for (uint i = 0; i < dock_windows.length; i++) {
                         var dock = dock_windows[i];

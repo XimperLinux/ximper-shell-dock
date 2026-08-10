@@ -5,7 +5,7 @@
 }
 
 .dock-content {
-    background: @headerbar_bg_color;
+    background: @window_bg_color;
     padding: 2px 6px;
 }
 

@@ -172,6 +172,9 @@ namespace XimperShellDock {
         private bool cursor_inside = false;
         private uint hide_timeout_id = 0;
         private uint watchdog_id = 0;
+        // Invalidates a completed fade-out after autohide has been disabled
+        // or the dock was shown again while that animation was in flight.
+        private uint visibility_animation_generation = 0;
         private uint magnification_tick_id = 0;
         private int64 magnification_last_frame_time = 0;
         private double wave_focus_x = 0.0;
@@ -345,6 +348,7 @@ namespace XimperShellDock {
         public void enable_autohide (bool enabled) {
             autohide_enabled = enabled;
             if (!enabled) {
+                visibility_animation_generation++;
                 cancel_hide ();
                 if (watchdog_id != 0) { Source.remove (watchdog_id); watchdog_id = 0; }
                 set_visible (true);
@@ -366,6 +370,7 @@ namespace XimperShellDock {
 
         public void show_animated () {
             cancel_hide ();
+            visibility_animation_generation++;
             show_timestamp = GLib.get_monotonic_time () / 1000;
             set_visible (true);
             opacity = 0;
@@ -377,9 +382,11 @@ namespace XimperShellDock {
 
         public void hide_animated () {
             cursor_inside = false;
+            uint generation = ++visibility_animation_generation;
             var target = new Adw.PropertyAnimationTarget (this, "opacity");
             var anim = new Adw.TimedAnimation (this, 1.0, 0.0, 200, target);
             anim.done.connect (() => {
+                if (generation != visibility_animation_generation || !autohide_enabled) return;
                 set_visible (false);
                 opacity = 1;
             });
