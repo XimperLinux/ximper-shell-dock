@@ -91,6 +91,35 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `dock_items` | string[] | | Ordered application entries in `app:<desktop-id>` format |
 | `dock_folders` | object[] | | Folder Stacks; see below |
 
+### Custom CSS
+
+Create `~/.config/ximper-shell/dock/style.css` to override the dock's
+appearance without changing installed files. This stylesheet is loaded with
+user priority, so its rules take precedence over the bundled stylesheet. Restart
+the dock after editing it.
+
+```sh
+mkdir -p ~/.config/ximper-shell/dock
+```
+
+For example, to adjust the dock background and its floating shadow:
+
+```css
+.dock-content {
+  background: @window_bg_color;
+}
+
+.dock-window.floating .dock-content {
+  box-shadow: 0 1px 3px @headerbar_shade_color;
+}
+```
+
+Useful selectors include `.dock-window`, `.dock-window.floating`,
+`.dock-window.pinned`, `.dock-content`, `.dock-icon`,
+`.dock-indicator`, and `.dock-folder-item`. GTK/libadwaita theme colors such as
+`@window_bg_color`, `@headerbar_bg_color`, and `@accent_bg_color` follow the
+active system theme.
+
 ### Folder Stack options
 
 Each `dock_folders` entry has an absolute `path` and optional presentation settings:
