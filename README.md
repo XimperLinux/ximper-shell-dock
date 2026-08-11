@@ -60,7 +60,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
   "magnify_radius": 2.0,
   "magnify_animation_duration": 120,
   "icon_size": 48,
-  "layer": 2,
+  "layer": "top",
   "launcher_fallback": "wofi --show drun",
   "pinned_apps": ["org.gnome.Nautilus.desktop"],
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
@@ -85,7 +85,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `bounce_on_launch` | bool | `false` | Bounce an icon while its application starts |
 | `bounce_duration` | int | `200` | Upward bounce duration in milliseconds |
 | `icon_size` | int | `48` | Dock icon size in pixels |
-| `layer` | int | `2` | Layer shell layer (0=background, 1=bottom, 2=top, 3=overlay) |
+| `layer` | string | `"top"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Command to run when tile menu is unavailable |
 | `pinned_apps` | string[] | | Compatibility view of pinned application desktop IDs; kept in sync with `dock_items` |
 | `dock_items` | string[] | | Ordered application entries in `app:<desktop-id>` format |

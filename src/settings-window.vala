@@ -48,12 +48,15 @@ namespace XimperShellDock {
             appearance_group.add (icon_row);
 
             // Layer
-            var layer_row = new Adw.SpinRow.with_range (0, 3, 1);
+            var layer_row = new Adw.ComboRow ();
             layer_row.title = _("Layer");
-            layer_row.subtitle = _("0 = background, 1 = bottom, 2 = top, 3 = overlay");
-            layer_row.value = app.config.layer;
-            layer_row.notify["value"].connect (() => {
-                app.config.layer = (int) layer_row.value;
+            layer_row.subtitle = _("Choose the layer where the dock is displayed");
+            layer_row.model = new Gtk.StringList ({
+                _("Background"), _("Bottom"), _("Top"), _("Overlay")
+            });
+            layer_row.selected = layer_index (app.config.layer);
+            layer_row.notify["selected"].connect (() => {
+                app.config.layer = layer_name (layer_row.selected);
                 app.config.save ();
             });
             appearance_group.add (layer_row);
@@ -194,6 +197,19 @@ namespace XimperShellDock {
                 });
                 group.add (row);
             }
+        }
+
+        private static uint layer_index (string layer) {
+            switch (LayerShellHelper.normalize_layer_name (layer)) {
+                case "background": return 0;
+                case "bottom": return 1;
+                case "overlay": return 3;
+                default: return 2;
+            }
+        }
+
+        private static string layer_name (uint index) {
+            return LayerShellHelper.layer_name_from_legacy ((int) index);
         }
     }
 }

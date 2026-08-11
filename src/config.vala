@@ -54,7 +54,7 @@ namespace XimperShellDock {
         public double magnify_radius { get; set; default = 2.0; }
         public int magnify_animation_duration { get; set; default = 120; }
         public int icon_size { get; set; default = 48; }
-        public int layer { get; set; default = 2; }
+        public string layer { get; set; default = "top"; }
         public string launcher_fallback { get; set; default = "wofi --show drun"; }
         // Empty means every currently connected monitor.  This preserves the
         // behaviour of configuration files written before monitor selection
@@ -92,6 +92,7 @@ namespace XimperShellDock {
                 parser.load_from_file (config_path);
 
                 var root = parser.get_root ().get_object ();
+                bool config_migrated = false;
 
                 if (root.has_member ("mode"))
                     dock_mode = DockMode.from_string (root.get_string_member ("mode"));
@@ -113,8 +114,15 @@ namespace XimperShellDock {
                     magnify_animation_duration = (int) root.get_int_member ("magnify_animation_duration");
                 if (root.has_member ("icon_size"))
                     icon_size = (int) root.get_int_member ("icon_size");
-                if (root.has_member ("layer"))
-                    layer = (int) root.get_int_member ("layer");
+                if (root.has_member ("layer")) {
+                    var layer_node = root.get_member ("layer");
+                    if (layer_node.get_value_type () == typeof (string))
+                        layer = LayerShellHelper.normalize_layer_name (layer_node.get_string ());
+                    else {
+                        layer = LayerShellHelper.layer_name_from_legacy ((int) layer_node.get_int ());
+                        config_migrated = true;
+                    }
+                }
                 if (root.has_member ("launcher_fallback"))
                     launcher_fallback = root.get_string_member ("launcher_fallback");
 
@@ -173,6 +181,7 @@ namespace XimperShellDock {
                 }
                 migrate_legacy_folder_items ();
                 sync_pinned_apps ();
+                if (config_migrated) save ();
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
                 create_default ();
@@ -205,7 +214,7 @@ namespace XimperShellDock {
             builder.set_member_name ("icon_size");
             builder.add_int_value (icon_size);
             builder.set_member_name ("layer");
-            builder.add_int_value (layer);
+            builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("launcher_fallback");
             builder.add_string_value (launcher_fallback);
             if (monitor_selection_explicit) {

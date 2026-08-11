@@ -58,7 +58,7 @@ ximper-shell-dock --unpin <desktop_id>
   "magnify_radius": 2.0,
   "magnify_animation_duration": 120,
   "icon_size": 48,
-  "layer": 2,
+  "layer": "top",
   "launcher_fallback": "wofi --show drun",
   "pinned_apps": ["org.gnome.Nautilus.desktop"],
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
@@ -83,7 +83,7 @@ ximper-shell-dock --unpin <desktop_id>
 | `bounce_on_launch` | bool | `false` | Подпрыгивание иконки при запуске приложения |
 | `bounce_duration` | int | `200` | Длительность подъёма в анимации подпрыгивания, в миллисекундах |
 | `icon_size` | int | `48` | Размер иконок дока в пикселях |
-| `layer` | int | `2` | Слой layer-shell (`0` — background, `1` — bottom, `2` — top, `3` — overlay) |
+| `layer` | string | `"top"` | Слой layer-shell: `"background"`, `"bottom"`, `"top"` или `"overlay"`. Числовые значения из старых конфигураций автоматически переносятся при сохранении. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Команда, запускаемая, когда меню плиток недоступно |
 | `pinned_apps` | string[] | | Совместимое представление закреплённых приложений с идентификаторами desktop-файлов; синхронизируется с `dock_items` |
 | `dock_items` | string[] | | Упорядоченные записи приложений в формате `app:<desktop-id>` |
