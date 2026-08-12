@@ -150,6 +150,7 @@ namespace XimperShellDock {
         private Gtk.Box dock_content;
         private Gtk.Box main_box;
         private Gtk.Box icon_box;
+        private Gtk.Separator running_separator;
         private Gtk.Box running_box;
         private Gtk.Separator folder_separator;
         private Gtk.Box folder_box;
@@ -542,7 +543,9 @@ namespace XimperShellDock {
                 });
                 running_box.append (icon);
             }
-            running_box.visible = entries.length > 0;
+            bool has_running = entries.length > 0;
+            running_box.visible = has_running;
+            running_separator.visible = has_running && icon_box.get_first_child () != null;
         }
 
         private void update_running_icon_focus () {
@@ -606,6 +609,10 @@ namespace XimperShellDock {
             icon_box.overflow = Gtk.Overflow.VISIBLE;
 
             // Running (not pinned) icons
+            running_separator = new Gtk.Separator (Gtk.Orientation.VERTICAL);
+            running_separator.add_css_class ("dock-separator");
+            running_separator.visible = false;
+
             running_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
             running_box.overflow = Gtk.Overflow.VISIBLE;
             running_box.visible = false;
@@ -631,6 +638,7 @@ namespace XimperShellDock {
 
             main_box.append (grid_wrapper);
             main_box.append (icon_box);
+            main_box.append (running_separator);
             main_box.append (running_box);
             main_box.append (folder_separator);
             main_box.append (folder_box);

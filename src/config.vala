@@ -45,7 +45,6 @@ namespace XimperShellDock {
     public class ConfigManager : Object {
 
         public DockMode dock_mode { get; set; default = DockMode.FLOATING; }
-        public bool autohide { get; set; default = false; }
         public bool show_trash { get; set; default = false; }
         public bool magnify_on_hover { get; set; default = false; }
         public bool bounce_on_launch { get; set; default = false; }
@@ -94,7 +93,7 @@ namespace XimperShellDock {
                 if (root.has_member ("mode"))
                     dock_mode = DockMode.from_string (root.get_string_member ("mode"));
                 if (root.has_member ("autohide"))
-                    autohide = root.get_boolean_member ("autohide");
+                    config_migrated = true;
                 if (root.has_member ("show_trash"))
                     show_trash = root.get_boolean_member ("show_trash");
                 if (root.has_member ("magnify_on_hover"))
@@ -181,8 +180,6 @@ namespace XimperShellDock {
 
             builder.set_member_name ("mode");
             builder.add_string_value (dock_mode.to_string ());
-            builder.set_member_name ("autohide");
-            builder.add_boolean_value (autohide);
             builder.set_member_name ("show_trash");
             builder.add_boolean_value (show_trash);
             builder.set_member_name ("magnify_on_hover");

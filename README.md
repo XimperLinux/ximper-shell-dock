@@ -5,13 +5,13 @@
 Dock panel.
 A component of the Ximper Shell.
 
-Wayland dock with app indicators, autohide, floating/pinned modes, macOS-style folder Stacks, hover magnification, launch bounce, and drag-and-drop. Built with Vala, GTK4, libadwaita, gtk4-layer-shell.
+Wayland dock with app indicators, floating/pinned modes, macOS-style folder Stacks, hover magnification, launch bounce, and drag-and-drop. Built with Vala, GTK4, libadwaita, gtk4-layer-shell.
 
 Supports Hyprland and Niri through compositor helpers.
 
 ## Features
 
-- Floating and pinned layouts, with optional autohide.
+- Floating layout with edge-triggered autohide, or a permanently visible pinned layout.
 - Running and focused-app indicators; unpinned running applications are shown separately.
 - Hover magnification wave with configurable scale, neighbour reach, and response speed; clicks and drag-and-drop also work over the enlarged part of an icon.
 - Optional launch bounce that continues until the application window is detected.
@@ -51,7 +51,6 @@ The dock tracks running and focused windows through compositor-specific helpers:
 ```json
 {
   "mode": "floating",
-  "autohide": false,
   "show_trash": false,
   "magnify_on_hover": false,
   "bounce_on_launch": false,
@@ -74,8 +73,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `mode` | string | `"floating"` | `"floating"` or `"pinned"` |
-| `autohide` | bool | `false` | Hide dock when not in use |
+| `mode` | string | `"floating"` | `"floating"` for an edge-triggered autohiding dock, or `"pinned"` for an always-visible dock |
 | `show_trash` | bool | `false` | Show the system Trash after Folder Stacks at the end of the dock |
 | `magnify_on_hover` | bool | `false` | Enable the hover magnification wave |
 | `magnify_scale` | int | `135` | Maximum hovered icon size, as a percentage |

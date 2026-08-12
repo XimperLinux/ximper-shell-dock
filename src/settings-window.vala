@@ -73,21 +73,6 @@ namespace XimperShellDock {
             var behavior_group = new Adw.PreferencesGroup ();
             behavior_group.title = _("Behavior");
 
-            // Autohide
-            var autohide_row = new Adw.SwitchRow ();
-            autohide_row.title = _("Autohide");
-            autohide_row.subtitle = _("Hide dock when not in use");
-            autohide_row.active = app.config.autohide;
-            autohide_row.sensitive = app.config.dock_mode == DockMode.FLOATING;
-            autohide_row.notify["active"].connect (() => {
-                app.config.autohide = autohide_row.active;
-                app.config.save ();
-            });
-            app.config.notify["dock-mode"].connect (() => {
-                autohide_row.sensitive = app.config.dock_mode == DockMode.FLOATING;
-            });
-            behavior_group.add (autohide_row);
-
             var trash_row = new Adw.SwitchRow ();
             trash_row.title = _("Show Trash");
             trash_row.subtitle = _("Display the system Trash at the end of the dock");
@@ -158,6 +143,15 @@ namespace XimperShellDock {
                 app.config.save ();
             });
             behavior_group.add (magnify_duration_row);
+
+            magnify_scale_row.visible = magnify_row.active;
+            magnify_radius_row.visible = magnify_row.active;
+            magnify_duration_row.visible = magnify_row.active;
+            magnify_row.notify["active"].connect (() => {
+                magnify_scale_row.visible = magnify_row.active;
+                magnify_radius_row.visible = magnify_row.active;
+                magnify_duration_row.visible = magnify_row.active;
+            });
 
             page.add (behavior_group);
 

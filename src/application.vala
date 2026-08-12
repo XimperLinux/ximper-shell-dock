@@ -77,10 +77,6 @@ namespace XimperShellDock {
 
             setup_autohide ();
 
-            config.notify["autohide"].connect (() => {
-                setup_autohide ();
-            });
-
             config.notify["dock-mode"].connect (() => {
                 for (uint i = 0; i < dock_windows.length; i++) {
                     dock_windows[i].apply_mode ();
@@ -99,11 +95,6 @@ namespace XimperShellDock {
                 dock_windows[i].update_indicators ();
             }
 
-            if (!config.autohide) {
-                for (uint i = 0; i < dock_windows.length; i++) {
-                    dock_windows[i].set_visible (true);
-                }
-            }
         }
 
         private void create_dock_for_monitor (Gdk.Monitor monitor) {
@@ -238,11 +229,9 @@ namespace XimperShellDock {
         }
 
         private void setup_autohide () {
-            // A pinned dock reserves screen space, so hiding it would leave
-            // an empty exclusive zone behind. Keep the user's preference for
-            // when they switch back to floating mode, but only enable the
-            // behavior while the dock is actually floating.
-            bool should_autohide = config.autohide && config.dock_mode == DockMode.FLOATING;
+            // A pinned dock reserves screen space and remains visible;
+            // the floating mode always uses the edge trigger and autohide.
+            bool should_autohide = config.dock_mode == DockMode.FLOATING;
             if (should_autohide) {
                 if (dock_triggers.length == 0) {
                     for (uint i = 0; i < dock_windows.length; i++) {

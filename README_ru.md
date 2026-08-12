@@ -49,7 +49,6 @@ ximper-shell-dock --remove-item app:<desktop_id>
 ```json
 {
   "mode": "floating",
-  "autohide": false,
   "show_trash": false,
   "magnify_on_hover": false,
   "bounce_on_launch": false,
@@ -72,8 +71,7 @@ ximper-shell-dock --remove-item app:<desktop_id>
 
 | Ключ | Тип | По умолчанию | Описание |
 |-----|-----|-------------|----------|
-| `mode` | string | `"floating"` | `"floating"` или `"pinned"` |
-| `autohide` | bool | `false` | Скрывать док, когда он не используется; работает только в режиме `"floating"` |
+| `mode` | string | `"floating"` | `"floating"` — автоскрываемый док с триггером у края экрана; `"pinned"` — постоянно видимый док |
 | `show_trash` | bool | `false` | Показывать системную корзину после папок-стопок в конце дока |
 | `magnify_on_hover` | bool | `false` | Включить волну увеличения иконок при наведении |
 | `magnify_scale` | int | `135` | Максимальный размер иконки при наведении, в процентах |
