@@ -56,7 +56,7 @@ ximper-shell-dock --remove-item app:<desktop_id>
   "magnify_scale": 135,
   "magnify_radius": 2.0,
   "magnify_animation_duration": 120,
-  "icon_size": 48,
+  "icon_size": 32,
   "layer": "top",
   "launcher_fallback": "wofi --show drun",
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
@@ -79,7 +79,7 @@ ximper-shell-dock --remove-item app:<desktop_id>
 | `magnify_animation_duration` | int | `120` | Время реакции волны в миллисекундах |
 | `bounce_on_launch` | bool | `false` | Подпрыгивание иконки при запуске приложения |
 | `bounce_duration` | int | `200` | Длительность подъёма в анимации подпрыгивания, в миллисекундах |
-| `icon_size` | int | `48` | Размер иконок дока в пикселях |
+| `icon_size` | int | `32` | Размер иконок дока в пикселях |
 | `layer` | string | `"top"` | Слой layer-shell: `"background"`, `"bottom"`, `"top"` или `"overlay"`. Числовые значения из старых конфигураций автоматически переносятся при сохранении. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Команда, запускаемая, когда меню плиток недоступно |
 | `dock_items` | string[] | | Упорядоченные элементы дока: приложения в формате `app:<desktop-id>` и служебные записи в формате `folder:<absolute-path>` |

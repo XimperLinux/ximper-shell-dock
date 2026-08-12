@@ -52,7 +52,7 @@ namespace XimperShellDock {
         public int magnify_scale { get; set; default = 135; }
         public double magnify_radius { get; set; default = 2.0; }
         public int magnify_animation_duration { get; set; default = 120; }
-        public int icon_size { get; set; default = 48; }
+        public int icon_size { get; set; default = 32; }
         public string layer { get; set; default = "top"; }
         public string launcher_fallback { get; set; default = "wofi --show drun"; }
         // Empty means every currently connected monitor.  This preserves the

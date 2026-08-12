@@ -58,7 +58,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
   "magnify_scale": 135,
   "magnify_radius": 2.0,
   "magnify_animation_duration": 120,
-  "icon_size": 48,
+  "icon_size": 32,
   "layer": "top",
   "launcher_fallback": "wofi --show drun",
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
@@ -81,7 +81,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `magnify_animation_duration` | int | `120` | Wave response time in milliseconds |
 | `bounce_on_launch` | bool | `false` | Bounce an icon while its application starts |
 | `bounce_duration` | int | `200` | Upward bounce duration in milliseconds |
-| `icon_size` | int | `48` | Dock icon size in pixels |
+| `icon_size` | int | `32` | Dock icon size in pixels |
 | `layer` | string | `"top"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Command to run when tile menu is unavailable |
 | `dock_items` | string[] | | Ordered dock items: applications in `app:<desktop-id>` format and special entries in `folder:<absolute-path>` format |

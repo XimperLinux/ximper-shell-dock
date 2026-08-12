@@ -855,21 +855,64 @@ namespace XimperShellDock {
         }
 
         private void choose_folder () {
-            // A native GTK chooser replaces the old hand-made path popover:
-            // it validates the selected folder and follows platform portal
-            // integration automatically.
-            var chooser = new Gtk.FileDialog ();
-            chooser.title = _("Add Folder to Dock");
-            chooser.accept_label = _("Add Folder");
-            chooser.select_folder.begin (this, null, (object, result) => {
-                try {
-                    var folder = chooser.select_folder.end (result);
-                    add_folder_file (folder);
-                } catch (Error e) {
-                    if (!(e is IOError.CANCELLED))
-                        warning ("Failed to select folder: %s", e.message);
-                }
-            });
+            try {
+                var connection = Bus.get_sync (BusType.SESSION, null);
+                var options = new VariantBuilder (new VariantType ("a{sv}"));
+                options.add ("{sv}", "directory", new Variant.boolean (true));
+                options.add ("{sv}", "multiple", new Variant.boolean (false));
+                options.add ("{sv}", "modal", new Variant.boolean (true));
+                options.add ("{sv}", "accept_label", new Variant.string (_("Add Folder")));
+
+                // A layer-shell surface cannot safely parent a GTK dialog.
+                // The portal owns its own regular surface; an empty parent
+                // handle is the supported fallback for this surface type.
+                var reply = connection.call_sync (
+                    "org.freedesktop.portal.Desktop",
+                    "/org/freedesktop/portal/desktop",
+                    "org.freedesktop.portal.FileChooser",
+                    "OpenFile",
+                    new Variant ("(ss@a{sv})", "", _("Add Folder to Dock"), options.end ()),
+                    new VariantType ("(o)"),
+                    DBusCallFlags.NONE, -1, null
+                );
+                var request_path = reply.get_child_value (0).get_string ();
+                uint subscription_id = 0;
+                subscription_id = connection.signal_subscribe (
+                    "org.freedesktop.portal.Desktop",
+                    "org.freedesktop.portal.Request",
+                    "Response",
+                    request_path,
+                    null,
+                    DBusSignalFlags.NONE,
+                    (conn, sender, object_path, interface_name, signal_name, parameters) => {
+                        conn.signal_unsubscribe (subscription_id);
+                        if (parameters.get_child_value (0).get_uint32 () != 0) return;
+
+                        var results = parameters.get_child_value (1);
+                        var result_iter = results.iterator ();
+                        string key;
+                        Variant value;
+                        while (result_iter.next ("{sv}", out key, out value)) {
+                            if (key != "uris") continue;
+                            // a{sv} values are variant-wrapped. The portal
+                            // returns uris as an array of strings inside it.
+                            var uris = value;
+                            if (uris.is_of_type (VariantType.VARIANT))
+                                uris = uris.get_variant ();
+                            if (!uris.is_of_type (VariantType.STRING_ARRAY)) {
+                                warning ("Folder chooser returned invalid uris");
+                                return;
+                            }
+                            var selected = uris.get_strv ();
+                            if (selected.length == 0) return;
+                            add_folder_file (File.new_for_uri (selected[0]));
+                            return;
+                        }
+                    }
+                );
+            } catch (Error e) {
+                warning ("Failed to open folder chooser portal: %s", e.message);
+            }
         }
 
         private void add_folder_file (File folder, int insert_folder_position = -1) {
