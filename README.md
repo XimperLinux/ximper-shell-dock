@@ -33,8 +33,8 @@ ninja -C _build
 ## CLI
 
 ```sh
-ximper-shell-dock --pin <desktop_id>
-ximper-shell-dock --unpin <desktop_id>
+ximper-shell-dock --add-item app:<desktop_id>
+ximper-shell-dock --remove-item app:<desktop_id>
 ```
 
 ## Compositor Support
@@ -62,7 +62,6 @@ The dock tracks running and focused windows through compositor-specific helpers:
   "icon_size": 48,
   "layer": "top",
   "launcher_fallback": "wofi --show drun",
-  "pinned_apps": ["org.gnome.Nautilus.desktop"],
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
   "dock_folders": [{
     "path": "/home/user/Documents",
@@ -87,8 +86,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `icon_size` | int | `48` | Dock icon size in pixels |
 | `layer` | string | `"top"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Command to run when tile menu is unavailable |
-| `pinned_apps` | string[] | | Compatibility view of pinned application desktop IDs; kept in sync with `dock_items` |
-| `dock_items` | string[] | | Ordered application entries in `app:<desktop-id>` format |
+| `dock_items` | string[] | | Ordered dock items: applications in `app:<desktop-id>` format and special entries in `folder:<absolute-path>` format |
 | `dock_folders` | object[] | | Folder Stacks; see below |
 
 ### Custom CSS

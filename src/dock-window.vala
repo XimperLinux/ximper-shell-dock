@@ -460,16 +460,15 @@ namespace XimperShellDock {
 
             // Build a stable description of the unpinned running entries.
             // A focus-only event must not tear down and rebuild this box.
-            var pinned = app.config.pinned_apps;
             var shown_classes = new GenericArray<string> ();
             var desired_entries = new GenericArray<AppEntry> ();
             var signature = new StringBuilder ();
 
-            // Collect pinned classes
-            if (pinned != null) {
-                for (uint i = 0; i < pinned.length; i++) {
-                    shown_classes.add (pinned[i]);
-                }
+            // Collect application entries already represented by dock icons.
+            var dock_items = app.config.dock_items;
+            for (uint i = 0; i < dock_items.length; i++) {
+                if (ConfigManager.is_app_item (dock_items[i]))
+                    shown_classes.add (ConfigManager.item_desktop_id (dock_items[i]));
             }
 
             // Collect running apps not already represented by a pinned icon.
@@ -1163,11 +1162,42 @@ namespace XimperShellDock {
                 }
             }
 
+            double base_left = double.MAX;
+            double base_right = -double.MAX;
+            double visual_left = double.MAX;
+            double visual_right = -double.MAX;
             for (uint i = 0; i < icons.length; i++) {
                 icons[i].set_visual_state (
                     icons[i].scale, icons[i].layout_offset - focus_offset
                 );
                 icons[i].visual_offset = icons[i].layout_offset - focus_offset;
+                base_left = double.min (base_left, icons[i].center - icons[i].width / 2.0);
+                base_right = double.max (base_right, icons[i].center + icons[i].width / 2.0);
+                visual_left = double.min (visual_left,
+                    icons[i].center - icons[i].width * icons[i].scale / 2.0 +
+                    icons[i].visual_offset);
+                visual_right = double.max (visual_right,
+                    icons[i].center + icons[i].width * icons[i].scale / 2.0 +
+                    icons[i].visual_offset);
+            }
+
+            // Grow the visible dock background to cover the enlarged wave,
+            // then return it to its normal size as the animation settles.
+            int needed_start = (int) (double.max (base_left - visual_left, 0.0) + 1.0);
+            int needed_end = (int) (double.max (visual_right - base_right, 0.0) + 1.0);
+            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end) {
+                main_box.margin_start = needed_start;
+                main_box.margin_end = needed_end;
+
+                // The layer surface uses explicit side margins for centering.
+                // Recalculate them after changing the natural content width,
+                // otherwise Wayland allocates the new background to the right.
+                int minimum = 0;
+                int natural = 0;
+                wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
+                                      out minimum, out natural, null, null);
+                center_floating_surface (natural);
+                queue_resize ();
             }
             active_wave_icons = icons;
             update_magnified_hover (icons);
@@ -1389,7 +1419,7 @@ namespace XimperShellDock {
                 app.add_dock_folder (path);
                 return;
             }
-            app.pin_app (ConfigManager.item_desktop_id (item));
+            app.add_dock_item (item);
         }
 
         private void reorder_dock_item_at (string item, int insert_visual_index) {
@@ -1403,7 +1433,7 @@ namespace XimperShellDock {
         }
 
         private void unpin_app (string desktop_id) {
-            app.unpin_app (desktop_id);
+            app.remove_dock_item (ConfigManager.app_item (desktop_id));
         }
 
         private void schedule_hide () {

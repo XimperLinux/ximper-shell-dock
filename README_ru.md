@@ -31,8 +31,8 @@ ninja -C _build
 ## CLI
 
 ```sh
-ximper-shell-dock --pin <desktop_id>
-ximper-shell-dock --unpin <desktop_id>
+ximper-shell-dock --add-item app:<desktop_id>
+ximper-shell-dock --remove-item app:<desktop_id>
 ```
 
 ## Поддержка композиторов
@@ -60,7 +60,6 @@ ximper-shell-dock --unpin <desktop_id>
   "icon_size": 48,
   "layer": "top",
   "launcher_fallback": "wofi --show drun",
-  "pinned_apps": ["org.gnome.Nautilus.desktop"],
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
   "dock_folders": [{
     "path": "/home/user/Documents",
@@ -85,8 +84,7 @@ ximper-shell-dock --unpin <desktop_id>
 | `icon_size` | int | `48` | Размер иконок дока в пикселях |
 | `layer` | string | `"top"` | Слой layer-shell: `"background"`, `"bottom"`, `"top"` или `"overlay"`. Числовые значения из старых конфигураций автоматически переносятся при сохранении. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Команда, запускаемая, когда меню плиток недоступно |
-| `pinned_apps` | string[] | | Совместимое представление закреплённых приложений с идентификаторами desktop-файлов; синхронизируется с `dock_items` |
-| `dock_items` | string[] | | Упорядоченные записи приложений в формате `app:<desktop-id>` |
+| `dock_items` | string[] | | Упорядоченные элементы дока: приложения в формате `app:<desktop-id>` и служебные записи в формате `folder:<absolute-path>` |
 | `dock_folders` | object[] | | Папки-стопки; см. ниже |
 
 ### Пользовательский CSS

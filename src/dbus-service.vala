@@ -10,16 +10,18 @@ namespace XimperShellDock {
         }
 
         public string[] get_pinned_apps () throws DBusError, IOError {
-            app.config.sync_pinned_apps ();
-            var pinned = app.config.pinned_apps;
-            if (pinned == null || pinned.length == 0) {
-                return {};
+            var items = app.config.dock_items;
+            var result = new GenericArray<string> ();
+            for (uint i = 0; i < items.length; i++) {
+                if (ConfigManager.is_app_item (items[i]))
+                    result.add (ConfigManager.item_desktop_id (items[i]));
             }
-            var result = new string[pinned.length];
-            for (uint i = 0; i < pinned.length; i++) {
-                result[i] = pinned[i];
+
+            var desktop_ids = new string[result.length];
+            for (uint i = 0; i < result.length; i++) {
+                desktop_ids[i] = result[i];
             }
-            return result;
+            return desktop_ids;
         }
 
         public bool is_pinned (string desktop_id) throws DBusError, IOError {
@@ -27,11 +29,11 @@ namespace XimperShellDock {
         }
 
         public void pin (string desktop_id) throws DBusError, IOError {
-            app.pin_app (desktop_id);
+            app.add_dock_item (ConfigManager.app_item (desktop_id));
         }
 
         public void unpin (string desktop_id) throws DBusError, IOError {
-            app.unpin_app (desktop_id);
+            app.remove_dock_item (ConfigManager.app_item (desktop_id));
         }
     }
 }

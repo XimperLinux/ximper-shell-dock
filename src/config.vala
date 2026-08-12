@@ -61,17 +61,14 @@ namespace XimperShellDock {
         // was introduced.
         public GenericArray<string> monitor_ids;
         private bool monitor_selection_explicit = false;
-        public GenericArray<string> pinned_apps;
         // Ordered dock contents. App entries are stored as "app:<desktop-id>",
-        // folders as "folder:<absolute-path>".  pinned_apps is retained as a
-        // compatibility view for the D-Bus API and older configuration files.
+        // folders as "folder:<absolute-path>".
         public GenericArray<string> dock_items;
         public GenericArray<DockFolderConfig> dock_folders;
 
         private string config_path;
 
         public ConfigManager () {
-            pinned_apps = new GenericArray<string> ();
             monitor_ids = new GenericArray<string> ();
             dock_items = new GenericArray<string> ();
             dock_folders = new GenericArray<DockFolderConfig> ();
@@ -135,14 +132,6 @@ namespace XimperShellDock {
                     });
                 }
 
-                if (root.has_member ("pinned_apps")) {
-                    pinned_apps = new GenericArray<string> ();
-                    var arr = root.get_array_member ("pinned_apps");
-                    arr.foreach_element ((array, i, node) => {
-                        pinned_apps.add (node.get_string ());
-                    });
-                }
-
                 if (root.has_member ("dock_items")) {
                     dock_items = new GenericArray<string> ();
                     var arr = root.get_array_member ("dock_items");
@@ -151,8 +140,6 @@ namespace XimperShellDock {
                         if (item.has_prefix ("app:") || item.has_prefix ("folder:"))
                             dock_items.add (item);
                     });
-                } else {
-                    migrate_pinned_apps ();
                 }
                 if (root.has_member ("dock_folders")) {
                     var folders = root.get_array_member ("dock_folders");
@@ -180,7 +167,6 @@ namespace XimperShellDock {
                     });
                 }
                 migrate_legacy_folder_items ();
-                sync_pinned_apps ();
                 if (config_migrated) save ();
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
@@ -225,14 +211,6 @@ namespace XimperShellDock {
                 }
                 builder.end_array ();
             }
-            builder.set_member_name ("pinned_apps");
-            builder.begin_array ();
-            sync_pinned_apps ();
-            for (uint i = 0; i < pinned_apps.length; i++) {
-                builder.add_string_value (pinned_apps[i]);
-            }
-            builder.end_array ();
-
             builder.set_member_name ("dock_folders");
             builder.begin_array ();
             for (uint i = 0; i < dock_folders.length; i++) {
@@ -286,12 +264,9 @@ namespace XimperShellDock {
         }
 
         private void create_default () {
-            pinned_apps = new GenericArray<string> ();
-            pinned_apps.add ("org.gnome.Nautilus.desktop");
-            pinned_apps.add ("org.gnome.TextEditor.desktop");
-            pinned_apps.add ("firefox.desktop");
-            migrate_pinned_apps ();
-
+            dock_items.add (app_item ("org.gnome.Nautilus.desktop"));
+            dock_items.add (app_item ("org.gnome.TextEditor.desktop"));
+            dock_items.add (app_item ("firefox.desktop"));
             save ();
         }
 
@@ -330,23 +305,6 @@ namespace XimperShellDock {
             return is_folder_item (item) ? item.substring (7) : "";
         }
 
-        public void migrate_pinned_apps () {
-            dock_items = new GenericArray<string> ();
-            if (pinned_apps == null) return;
-            for (uint i = 0; i < pinned_apps.length; i++) {
-                dock_items.add (app_item (pinned_apps[i]));
-            }
-        }
-
-        public void sync_pinned_apps () {
-            pinned_apps = new GenericArray<string> ();
-            if (dock_items == null) return;
-            for (uint i = 0; i < dock_items.length; i++) {
-                if (is_app_item (dock_items[i]))
-                    pinned_apps.add (item_desktop_id (dock_items[i]));
-            }
-        }
-
         public bool has_dock_item (string item) {
             for (uint i = 0; i < dock_items.length; i++) {
                 if (dock_items[i] == item) return true;
@@ -357,7 +315,6 @@ namespace XimperShellDock {
         public void add_dock_item (string item) {
             if (has_dock_item (item)) return;
             dock_items.add (item);
-            sync_pinned_apps ();
         }
 
         public void remove_dock_item (string item) {
@@ -366,7 +323,6 @@ namespace XimperShellDock {
                 if (dock_items[i] != item) result.add (dock_items[i]);
             }
             dock_items = result;
-            sync_pinned_apps ();
         }
 
         public void reorder_dock_item (string item, int position) {
@@ -374,7 +330,6 @@ namespace XimperShellDock {
             if (position < 0) position = 0;
             if (position > (int) dock_items.length) position = (int) dock_items.length;
             dock_items.insert (position, item);
-            sync_pinned_apps ();
         }
 
         private void migrate_legacy_folder_items () {

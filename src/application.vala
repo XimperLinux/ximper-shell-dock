@@ -21,8 +21,8 @@ namespace XimperShellDock {
             dock_windows = new GenericArray<DockWindow> ();
             dock_triggers = new GenericArray<DockTrigger> ();
             options = {
-                { "pin", 'p', 0, OptionArg.STRING, null, _("Pin app to dock"), _("DESKTOP_ID") },
-                { "unpin", 'u', 0, OptionArg.STRING, null, _("Unpin app from dock"), _("DESKTOP_ID") },
+                { "add-item", 'a', 0, OptionArg.STRING, null, _("Add an item to dock"), _("ITEM") },
+                { "remove-item", 'r', 0, OptionArg.STRING, null, _("Remove an item from dock"), _("ITEM") },
                 { null }
             };
             add_main_option_entries (options);
@@ -55,15 +55,14 @@ namespace XimperShellDock {
 
             activate ();
 
-            string pin_id;
-            if (options.lookup ("pin", "s", out pin_id)) {
-                pin_app (pin_id);
+            string item;
+            if (options.lookup ("add-item", "s", out item)) {
+                add_dock_item (item);
                 return 0;
             }
 
-            string unpin_id;
-            if (options.lookup ("unpin", "s", out unpin_id)) {
-                unpin_app (unpin_id);
+            if (options.lookup ("remove-item", "s", out item)) {
+                remove_dock_item (item);
                 return 0;
             }
 
@@ -182,16 +181,18 @@ namespace XimperShellDock {
             base.shutdown ();
         }
 
-        public void pin_app (string desktop_id) {
-            var item = ConfigManager.app_item (desktop_id);
+        public void add_dock_item (string item) {
+            if (!ConfigManager.is_app_item (item) && !ConfigManager.is_folder_item (item))
+                return;
             if (config.has_dock_item (item)) return;
             config.add_dock_item (item);
             config.save ();
             rebuild_docks ();
         }
 
-        public void unpin_app (string desktop_id) {
-            config.remove_dock_item (ConfigManager.app_item (desktop_id));
+        public void remove_dock_item (string item) {
+            if (!config.has_dock_item (item)) return;
+            config.remove_dock_item (item);
             config.save ();
             rebuild_docks ();
         }
