@@ -35,13 +35,11 @@ gtk4-layer-shell. Supports Hyprland and Niri.
 %meson_test
 
 %files -f %name.lang
-%doc README.md README_ru.md
-%license LICENSE
+%doc README.md README_ru.md LICENSE
 %_bindir/%name
-%dir %_sysconfdir/xdg/ximper-shell
 %dir %_sysconfdir/xdg/ximper-shell/dock
 %_sysconfdir/xdg/ximper-shell/dock/style.css
 
 %changelog
-* Tue Aug 11 2026 Roman Alifanov <ximper@etersoft.ru> 0.1.0-eter0
+* Tue Aug 11 2026 Roman Alifanov <ximper@altlinux.org> 0.1.0-eter0
 - Initial build
