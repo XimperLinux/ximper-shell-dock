@@ -33,6 +33,7 @@ ninja -C _build
 ```sh
 ximper-shell-dock --add-item app:<desktop_id>
 ximper-shell-dock --remove-item app:<desktop_id>
+ximper-shell-dock --describe  # вывести текущую конфигурацию и поддерживаемые параметры в JSON
 ```
 
 ## Поддержка композиторов
@@ -57,6 +58,8 @@ ximper-shell-dock --remove-item app:<desktop_id>
   "magnify_radius": 2.0,
   "magnify_animation_duration": 120,
   "icon_size": 32,
+  "hide_delay": 300,
+  "floating_margin": 8,
   "layer": "top",
   "launcher_fallback": "wofi --show drun",
   "dock_items": ["app:org.gnome.Nautilus.desktop"],
@@ -80,10 +83,15 @@ ximper-shell-dock --remove-item app:<desktop_id>
 | `bounce_on_launch` | bool | `false` | Подпрыгивание иконки при запуске приложения |
 | `bounce_duration` | int | `200` | Длительность подъёма в анимации подпрыгивания, в миллисекундах |
 | `icon_size` | int | `32` | Размер иконок дока в пикселях |
+| `hide_delay` | int | `300` | Задержка перед скрытием плавающего дока в миллисекундах (0–5000) |
+| `floating_margin` | int | `8` | Расстояние между плавающим доком и краем экрана в пикселях (0–128) |
+| `monitors` | string[] | отсутствует | Имена разъёмов мониторов, на которых показывать док; при отсутствии или пустом значении — на всех мониторах |
 | `layer` | string | `"top"` | Слой layer-shell: `"background"`, `"bottom"`, `"top"` или `"overlay"`. Числовые значения из старых конфигураций автоматически переносятся при сохранении. |
 | `launcher_fallback` | string | `"wofi --show drun"` | Команда, запускаемая, когда меню плиток недоступно |
 | `dock_items` | string[] | | Упорядоченные элементы дока: приложения в формате `app:<desktop-id>` и служебные записи в формате `folder:<absolute-path>` |
 | `dock_folders` | object[] | | Папки-стопки; см. ниже |
+
+Мониторы выбираются в окне настроек: оно сохраняет имена разъёмов в `monitors`. Не используйте индексы дисплеев — они могут измениться после переподключения мониторов.
 
 ### Пользовательский CSS
 
