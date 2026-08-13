@@ -4,12 +4,14 @@ namespace XimperShellDock {
 
         public signal void trigger_activated ();
         public bool cursor_on_trigger { get; private set; default = false; }
+        public Gdk.Monitor? monitor { get; private set; }
         private Gtk.DrawingArea hotspot;
 
         public DockTrigger (Application app, Gdk.Monitor? monitor = null,
                             int edge_margin = 4) {
             this.title = "Ximper Shell Dock Trigger";
             this.decorated = false;
+            this.monitor = monitor;
 
             GtkLayerShell.init_for_window (this);
             GtkLayerShell.set_layer (this, GtkLayerShell.Layer.OVERLAY);
