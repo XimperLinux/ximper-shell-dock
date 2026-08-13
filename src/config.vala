@@ -66,6 +66,7 @@ namespace XimperShellDock {
         public GenericArray<DockFolderConfig> dock_folders;
 
         private string config_path;
+        public string config_file { get { return config_path; } }
 
         public ConfigManager () {
             monitor_ids = new GenericArray<string> ();

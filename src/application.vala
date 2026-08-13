@@ -23,6 +23,7 @@ namespace XimperShellDock {
             options = {
                 { "add-item", 'a', 0, OptionArg.STRING, null, _("Add an item to dock"), _("ITEM") },
                 { "remove-item", 'r', 0, OptionArg.STRING, null, _("Remove an item from dock"), _("ITEM") },
+                { "describe", 0, 0, OptionArg.NONE, null, _("Print configuration and parameter metadata as JSON"), null },
                 { null }
             };
             add_main_option_entries (options);
@@ -52,6 +53,11 @@ namespace XimperShellDock {
 
         protected override int command_line (ApplicationCommandLine cmdline) {
             var options = cmdline.get_options_dict ();
+
+            if (options.contains ("describe")) {
+                cmdline.print ("%s", describe_json (config));
+                return 0;
+            }
 
             activate ();
 
