@@ -118,8 +118,15 @@ namespace XimperShellDock {
                 window_class.down () == parts[parts.length - 1].down ()) return true;
 
             var startup_wm_class = app_info.get_string ("StartupWMClass");
-            return startup_wm_class != null && startup_wm_class.length > 0 &&
-                window_class.down () == startup_wm_class.down ();
+            if (startup_wm_class != null && startup_wm_class.length > 0 &&
+                window_class.down () == startup_wm_class.down ()) return true;
+
+            // Some Wayland applications use the executable name as app_id
+            // rather than their reverse-DNS desktop ID and do not provide
+            // StartupWMClass (for example org.gnome.DiskUtility/gnome-disks).
+            var executable = app_info.get_executable ();
+            return executable != null && executable.length > 0 &&
+                window_class.down () == Path.get_basename (executable).down ();
         }
 
         public string[] list_actions () {

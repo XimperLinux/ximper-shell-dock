@@ -10,7 +10,7 @@
 }
 
 .dock-window.floating .dock-content {
-    border-radius: 14px;
+    border-radius: 15px;
     box-shadow: 0 1px 3px @headerbar_shade_color;
 }
 
