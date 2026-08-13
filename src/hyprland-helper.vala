@@ -194,8 +194,16 @@ namespace XimperShellDock {
                     var pid = obj.has_member ("pid") ? (int) obj.get_int_member ("pid") : 0;
                     var title = obj.has_member ("title") ? obj.get_string_member ("title") : "";
                     var address = obj.has_member ("address") ? obj.get_string_member ("address") : null;
+                    var workspace = "";
+                    if (obj.has_member ("workspace")) {
+                        var workspace_obj = obj.get_object_member ("workspace");
+                        if (workspace_obj != null && workspace_obj.has_member ("name"))
+                            workspace = workspace_obj.get_string_member ("name");
+                    }
 
-                    running_apps.add (new RunningApp (app_class, pid, title, address));
+                    running_apps.add (new RunningApp (
+                        app_class, pid, title, address, workspace
+                    ));
                 });
 
                 Process.spawn_command_line_sync (

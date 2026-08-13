@@ -5,12 +5,15 @@ namespace XimperShellDock {
         public int pid;
         public string title;
         public string? window_id;
+        public string workspace;
 
-        public RunningApp (string app_class, int pid, string title, string? window_id = null) {
+        public RunningApp (string app_class, int pid, string title,
+                           string? window_id = null, string workspace = "") {
             this.app_class = app_class;
             this.pid = pid;
             this.title = title;
             this.window_id = window_id;
+            this.workspace = workspace;
         }
     }
 
@@ -73,6 +76,19 @@ namespace XimperShellDock {
         public void focus_app (AppEntry entry) {
             var running = find_running_app (entry);
             if (running != null) focus_running_app (running);
+        }
+
+        public void focus_window (RunningApp running) {
+            focus_running_app (running);
+        }
+
+        public GenericArray<RunningApp> windows_for_app (AppEntry entry) {
+            var matches = new GenericArray<RunningApp> ();
+            for (uint i = 0; i < running_apps.length; i++) {
+                if (entry.matches_window_class (running_apps[i].app_class))
+                    matches.add (running_apps[i]);
+            }
+            return matches;
         }
 
         public void close_app_entry (AppEntry entry) {

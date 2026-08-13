@@ -11,6 +11,7 @@ namespace XimperShellDock {
         private int icon_size;
         private bool _is_running = false;
         private bool _is_focused = false;
+        private uint window_count = 0;
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
         private double vertical_bounce_offset = 0.0;
@@ -28,6 +29,7 @@ namespace XimperShellDock {
         public signal void unpin_requested (string desktop_id);
         public signal void pin_requested (string desktop_id);
         public signal void focus_requested (string desktop_id);
+        public signal void windows_requested (DockIcon icon);
         public signal void close_requested (string desktop_id);
         public signal void popover_state_changed (bool open);
         public signal void drag_state_changed (bool active);
@@ -61,7 +63,8 @@ namespace XimperShellDock {
 
             button.clicked.connect (() => {
                 if (_is_running) {
-                    focus_requested (desktop_id);
+                    if (window_count > 1) windows_requested (this);
+                    else focus_requested (desktop_id);
                 } else {
                     if (bounce_on_launch) play_launch_bounce ();
                     entry.launch ();
@@ -92,6 +95,10 @@ namespace XimperShellDock {
             _is_running = running;
             if (running) finish_launch_bounce ();
             indicator_box.visible = running;
+        }
+
+        public void set_window_count (uint count) {
+            window_count = count;
         }
 
         public void set_focused (bool focused) {

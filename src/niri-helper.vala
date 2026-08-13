@@ -154,6 +154,27 @@ namespace XimperShellDock {
 
                 running_apps = new GenericArray<RunningApp> ();
                 focused_class = null;
+                var workspace_names = new HashTable<string, string> (str_hash, str_equal);
+
+                string workspace_json;
+                int workspace_status;
+                Process.spawn_command_line_sync (
+                    "niri msg --json workspaces",
+                    out workspace_json, null, out workspace_status
+                );
+                if (workspace_status == 0 && workspace_json != null) {
+                    var workspace_parser = new Json.Parser ();
+                    workspace_parser.load_from_data (workspace_json);
+                    var workspaces = workspace_parser.get_root ().get_array ();
+                    workspaces.foreach_element ((arr, idx, node) => {
+                        var workspace = node.get_object ();
+                        if (!workspace.has_member ("id")) return;
+                        var id = workspace.get_int_member ("id").to_string ();
+                        var name = workspace.has_member ("name")
+                            ? workspace.get_string_member ("name") : id;
+                        workspace_names.insert (id, name);
+                    });
+                }
 
                 var parser = new Json.Parser ();
                 parser.load_from_data (stdout_buf);
@@ -180,7 +201,14 @@ namespace XimperShellDock {
                     }
 
                     var window_id = obj.has_member ("id") ? obj.get_int_member ("id").to_string () : null;
-                    running_apps.add (new RunningApp (app_id, pid, title, window_id));
+                    var workspace = "";
+                    if (obj.has_member ("workspace_id")) {
+                        var workspace_id = obj.get_int_member ("workspace_id").to_string ();
+                        workspace = workspace_names.lookup (workspace_id) ?? workspace_id;
+                    }
+                    running_apps.add (new RunningApp (
+                        app_id, pid, title, window_id, workspace
+                    ));
 
                     if (obj.has_member ("is_focused") && obj.get_boolean_member ("is_focused")) {
                         focused_class = app_id;

@@ -454,6 +454,7 @@ namespace XimperShellDock {
                 if (child is DockIcon) {
                     var icon = (DockIcon) child;
                     icon.set_running (tracker.is_running_app (icon.app_entry));
+                    icon.set_window_count (tracker.windows_for_app (icon.app_entry).length);
                     icon.set_focused (tracker.is_focused_app (icon.app_entry));
                 }
                 child = child.get_next_sibling ();
@@ -517,6 +518,46 @@ namespace XimperShellDock {
             }
         }
 
+        private void show_window_list (DockIcon icon) {
+            var windows = app.window_tracker.windows_for_app (icon.app_entry);
+            if (windows.length < 2) {
+                app.window_tracker.focus_app (icon.app_entry);
+                return;
+            }
+
+            var popover = new Gtk.Popover ();
+            popover.set_parent (icon);
+            popover.has_arrow = true;
+            popover.position = Gtk.PositionType.TOP;
+            popover.add_css_class ("menu");
+
+            var list = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            for (uint i = 0; i < windows.length; i++) {
+                var window = windows[i];
+                var title = window.title.length > 0 ? window.title : icon.app_entry.name;
+                if (window.workspace.length > 0)
+                    title += " (" + window.workspace + ")";
+                var item = new Gtk.Button.with_label (title);
+                var target_window = window;
+                item.add_css_class ("flat");
+                item.halign = Gtk.Align.FILL;
+                item.clicked.connect (() => {
+                    popover.popdown ();
+                    app.window_tracker.focus_window (target_window);
+                });
+                list.append (item);
+            }
+            popover.set_child (list);
+            popover.closed.connect (() => {
+                popover_open = false;
+                popover.unparent ();
+                if (autohide_enabled) schedule_hide ();
+            });
+            popover_open = true;
+            cancel_hide ();
+            popover.popup ();
+        }
+
         private void rebuild_running_icons (GenericArray<AppEntry> entries) {
             var child = running_box.get_first_child ();
             while (child != null) {
@@ -530,10 +571,14 @@ namespace XimperShellDock {
                                          app.config.bounce_on_launch,
                                          app.config.bounce_duration);
                 icon.set_running (true);
+                icon.set_window_count (app.window_tracker.windows_for_app (icon.app_entry).length);
                 icon.set_focused (app.window_tracker.is_focused_app (icon.app_entry));
                 icon.pin_requested.connect ((id) => { pin_app (id); });
                 icon.focus_requested.connect ((id) => {
                     app.window_tracker.focus_app (icon.app_entry);
+                });
+                icon.windows_requested.connect ((source) => {
+                    show_window_list (source);
                 });
                 icon.close_requested.connect ((id) => {
                     app.window_tracker.close_app (icon.app_entry);
@@ -556,6 +601,7 @@ namespace XimperShellDock {
                 if (child is DockIcon) {
                     var icon = (DockIcon) child;
                     icon.set_running (true);
+                    icon.set_window_count (app.window_tracker.windows_for_app (icon.app_entry).length);
                     icon.set_focused (app.window_tracker.is_focused_app (icon.app_entry));
                 }
                 child = child.get_next_sibling ();
@@ -1342,6 +1388,9 @@ namespace XimperShellDock {
                     });
                     icon.focus_requested.connect ((id) => {
                         app.window_tracker.focus_app (icon.app_entry);
+                    });
+                    icon.windows_requested.connect ((source) => {
+                        show_window_list (source);
                     });
                     icon.close_requested.connect ((id) => {
                         app.window_tracker.close_app (icon.app_entry);

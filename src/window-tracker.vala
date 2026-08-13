@@ -47,6 +47,14 @@ namespace XimperShellDock {
             helper.focus_app (entry);
         }
 
+        public void focus_window (RunningApp running) {
+            helper.focus_window (running);
+        }
+
+        public GenericArray<RunningApp> windows_for_app (AppEntry entry) {
+            return helper.windows_for_app (entry);
+        }
+
         public void close_app (AppEntry entry) {
             helper.close_app_entry (entry);
         }
