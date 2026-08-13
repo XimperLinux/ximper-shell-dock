@@ -169,7 +169,8 @@ namespace XimperShellDock {
                 row.title = model != null && model.length > 0 ? model : id;
                 row.subtitle = id;
                 row.active = app.config.is_monitor_enabled (id);
-                row.notify["active"].connect (() => {
+                ulong active_handler_id = 0;
+                active_handler_id = row.notify["active"].connect (() => {
                     var selected = new GenericArray<string> ();
                     for (uint j = 0; j < monitors.get_n_items (); j++) {
                         var candidate = (Gdk.Monitor) monitors.get_item (j);
@@ -182,7 +183,13 @@ namespace XimperShellDock {
                     // A configuration with no visible dock would otherwise be
                     // impractical to recover through the graphical UI.
                     if (selected.length == 0) {
+                        // Do not recursively emit notify::active while the
+                        // settings window can be destroyed by a monitor
+                        // surface rebuild.  Restoring the switch is only UI
+                        // feedback; the persisted selection stays valid.
+                        SignalHandler.block (row, active_handler_id);
                         row.active = true;
+                        SignalHandler.unblock (row, active_handler_id);
                         return;
                     }
                     app.config.set_monitor_ids (selected);
