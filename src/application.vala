@@ -129,27 +129,34 @@ namespace XimperShellDock {
         }
 
         public void apply_monitor_selection () {
-            // A layer-shell surface cannot be moved safely between outputs;
-            // recreating the selected surfaces also keeps their exclusive
-            // zones and autohide hotspots consistent.
-            for (uint i = 0; i < dock_triggers.length; i++) {
-                remove_window (dock_triggers[i]);
-                dock_triggers[i].destroy ();
+            var monitors = Gdk.Display.get_default ().get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                var monitor = (Gdk.Monitor) monitors.get_item (i);
+                var id = monitor_id (monitor, i);
+                if (config.is_monitor_enabled (id) && !has_dock_for_monitor (monitor))
+                    create_dock_for_monitor (monitor);
             }
-            for (uint i = 0; i < dock_windows.length; i++) {
-                remove_window (dock_windows[i]);
-                dock_windows[i].destroy ();
-            }
-            dock_triggers = new GenericArray<DockTrigger> ();
-            dock_windows = new GenericArray<DockWindow> ();
-            create_configured_docks ();
+            // Destroying a layer-shell window while GTK processes the switch
+            // event can crash GTK. Keep disabled surfaces alive and hidden;
+            // they are reused immediately if their monitor is selected again.
             setup_autohide ();
-            // Newly created surfaces need the already-cached window state;
-            // waiting for the next compositor event leaves their indicators
-            // empty until a workspace change.
-            for (uint i = 0; i < dock_windows.length; i++) {
+            for (uint i = 0; i < dock_windows.length; i++)
                 dock_windows[i].update_indicators ();
+        }
+
+        private bool has_dock_for_monitor (Gdk.Monitor monitor) {
+            for (uint i = 0; i < dock_windows.length; i++) {
+                if (dock_windows[i].monitor == monitor) return true;
             }
+            return false;
+        }
+
+        private DockTrigger? find_trigger_for_monitor (Gdk.Monitor? monitor) {
+            for (uint i = 0; i < dock_triggers.length; i++) {
+                if (dock_triggers[i].monitor == monitor)
+                    return dock_triggers[i];
+            }
+            return null;
         }
 
         private void toggle_grid () {
@@ -242,13 +249,18 @@ namespace XimperShellDock {
 
         private void setup_autohide () {
             // A pinned dock reserves screen space and remains visible;
-            // the floating mode always uses the edge trigger and autohide.
+            // the floating mode uses an edge trigger and autohide. Disabled
+            // monitor surfaces remain hidden instead of being destroyed.
             bool should_autohide = config.dock_mode == DockMode.FLOATING;
-            if (should_autohide) {
-                if (dock_triggers.length == 0) {
-                    for (uint i = 0; i < dock_windows.length; i++) {
-                        var dock = dock_windows[i];
-                        var trigger = new DockTrigger (
+            for (uint i = 0; i < dock_windows.length; i++) {
+                var dock = dock_windows[i];
+                bool enabled = dock.monitor != null &&
+                    config.is_monitor_enabled (monitor_id (dock.monitor, i));
+                var trigger = find_trigger_for_monitor (dock.monitor);
+
+                if (should_autohide && enabled) {
+                    if (trigger == null) {
+                        trigger = new DockTrigger (
                             this, dock.monitor, config.floating_margin
                         );
                         trigger.trigger_activated.connect (() => {
@@ -258,23 +270,14 @@ namespace XimperShellDock {
                         add_window (trigger);
                         dock_triggers.add (trigger);
                     }
-                }
-
-                for (uint i = 0; i < dock_triggers.length; i++) {
-                    dock_triggers[i].present ();
-                }
-                for (uint i = 0; i < dock_windows.length; i++) {
-                    dock_windows[i].enable_autohide (true);
-                    dock_windows[i].set_visible (false);
-                }
-            } else {
-                for (uint i = 0; i < dock_triggers.length; i++) {
-                    dock_triggers[i].set_visible (false);
-                }
-                for (uint i = 0; i < dock_windows.length; i++) {
-                    dock_windows[i].enable_autohide (false);
-                    dock_windows[i].opacity = 1;
-                    dock_windows[i].set_visible (true);
+                    trigger.present ();
+                    dock.enable_autohide (true);
+                    dock.set_visible (false);
+                } else {
+                    if (trigger != null) trigger.set_visible (false);
+                    dock.enable_autohide (false);
+                    dock.opacity = 1;
+                    dock.set_visible (enabled);
                 }
             }
         }
