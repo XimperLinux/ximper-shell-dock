@@ -154,7 +154,9 @@ namespace XimperShellDock {
         private void handle_event (string event_line) {
             if (event_line.has_prefix ("openwindow>>") ||
                 event_line.has_prefix ("closewindow>>") ||
-                event_line.has_prefix ("movewindow>>")) {
+                event_line.has_prefix ("movewindow>>") ||
+                event_line.has_prefix ("workspace>>") ||
+                event_line.has_prefix ("focusedmon>>")) {
                 refresh_clients ();
             } else if (event_line.has_prefix ("activewindow>>")) {
                 var data = event_line.substring ("activewindow>>".length);
@@ -181,6 +183,8 @@ namespace XimperShellDock {
                 if (exit_status != 0 || stdout_buf == null) return;
 
                 running_apps = new GenericArray<RunningApp> ();
+                active_workspace_ids = new HashTable<string, string> (str_hash, str_equal);
+                occupied_workspace_ids = new HashTable<string, bool> (str_hash, str_equal);
 
                 var parser = new Json.Parser ();
                 parser.load_from_data (stdout_buf);
@@ -188,6 +192,14 @@ namespace XimperShellDock {
                 var array = parser.get_root ().get_array ();
                 array.foreach_element ((arr, idx, node) => {
                     var obj = node.get_object ();
+                    var workspace_id = "";
+                    if (obj.has_member ("workspace")) {
+                        var workspace_obj = obj.get_object_member ("workspace");
+                        if (workspace_obj != null && workspace_obj.has_member ("id")) {
+                            workspace_id = workspace_obj.get_int_member ("id").to_string ();
+                            occupied_workspace_ids.insert (workspace_id, true);
+                        }
+                    }
                     if (!obj.has_member ("class")) return;
                     var app_class = obj.get_string_member ("class");
                     if (app_class == null || app_class.length == 0) return;
@@ -202,9 +214,30 @@ namespace XimperShellDock {
                     }
 
                     running_apps.add (new RunningApp (
-                        app_class, pid, title, address, workspace
+                        app_class, pid, title, address, workspace, workspace_id
                     ));
                 });
+
+                Process.spawn_command_line_sync (
+                    "hyprctl monitors -j",
+                    out stdout_buf, null, out exit_status
+                );
+                if (exit_status == 0 && stdout_buf != null) {
+                    var monitor_parser = new Json.Parser ();
+                    monitor_parser.load_from_data (stdout_buf);
+                    var monitors = monitor_parser.get_root ().get_array ();
+                    monitors.foreach_element ((arr, idx, node) => {
+                        var monitor = node.get_object ();
+                        if (!monitor.has_member ("name") || !monitor.has_member ("activeWorkspace")) return;
+                        var active = monitor.get_object_member ("activeWorkspace");
+                        if (active != null && active.has_member ("id")) {
+                            active_workspace_ids.insert (
+                                monitor.get_string_member ("name"),
+                                active.get_int_member ("id").to_string ()
+                            );
+                        }
+                    });
+                }
 
                 Process.spawn_command_line_sync (
                     "hyprctl activewindow -j",

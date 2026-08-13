@@ -154,6 +154,8 @@ namespace XimperShellDock {
 
                 running_apps = new GenericArray<RunningApp> ();
                 focused_class = null;
+                active_workspace_ids = new HashTable<string, string> (str_hash, str_equal);
+                occupied_workspace_ids = new HashTable<string, bool> (str_hash, str_equal);
                 var workspace_names = new HashTable<string, string> (str_hash, str_equal);
 
                 string workspace_json;
@@ -170,9 +172,17 @@ namespace XimperShellDock {
                         var workspace = node.get_object ();
                         if (!workspace.has_member ("id")) return;
                         var id = workspace.get_int_member ("id").to_string ();
-                        var name = workspace.has_member ("name")
+                        var name = workspace.has_member ("name") &&
+                            workspace.get_member ("name").get_node_type () != Json.NodeType.NULL
                             ? workspace.get_string_member ("name") : id;
                         workspace_names.insert (id, name);
+                        if (workspace.has_member ("is_active") &&
+                            workspace.get_boolean_member ("is_active") &&
+                            workspace.has_member ("output")) {
+                            active_workspace_ids.insert (
+                                workspace.get_string_member ("output"), id
+                            );
+                        }
                     });
                 }
 
@@ -182,6 +192,11 @@ namespace XimperShellDock {
                 var array = parser.get_root ().get_array ();
                 array.foreach_element ((arr, idx, node) => {
                     var obj = node.get_object ();
+                    var workspace_id = "";
+                    if (obj.has_member ("workspace_id")) {
+                        workspace_id = obj.get_int_member ("workspace_id").to_string ();
+                        occupied_workspace_ids.insert (workspace_id, true);
+                    }
                     if (!obj.has_member ("app_id")) return;
                     if (obj.get_member ("app_id").get_node_type () == Json.NodeType.NULL) return;
 
@@ -202,12 +217,10 @@ namespace XimperShellDock {
 
                     var window_id = obj.has_member ("id") ? obj.get_int_member ("id").to_string () : null;
                     var workspace = "";
-                    if (obj.has_member ("workspace_id")) {
-                        var workspace_id = obj.get_int_member ("workspace_id").to_string ();
+                    if (workspace_id.length > 0)
                         workspace = workspace_names.lookup (workspace_id) ?? workspace_id;
-                    }
                     running_apps.add (new RunningApp (
-                        app_id, pid, title, window_id, workspace
+                        app_id, pid, title, window_id, workspace, workspace_id
                     ));
 
                     if (obj.has_member ("is_focused") && obj.get_boolean_member ("is_focused")) {

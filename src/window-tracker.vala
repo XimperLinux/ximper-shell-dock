@@ -35,6 +35,10 @@ namespace XimperShellDock {
             helper.stop ();
         }
 
+        public bool is_active_workspace_empty (string? output) {
+            return helper.is_active_workspace_empty (output);
+        }
+
         public bool is_running_app (AppEntry entry) {
             return helper.is_running_app (entry);
         }

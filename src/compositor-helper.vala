@@ -6,14 +6,17 @@ namespace XimperShellDock {
         public string title;
         public string? window_id;
         public string workspace;
+        public string workspace_id;
 
         public RunningApp (string app_class, int pid, string title,
-                           string? window_id = null, string workspace = "") {
+                           string? window_id = null, string workspace = "",
+                           string workspace_id = "") {
             this.app_class = app_class;
             this.pid = pid;
             this.title = title;
             this.window_id = window_id;
             this.workspace = workspace;
+            this.workspace_id = workspace_id;
         }
     }
 
@@ -22,11 +25,17 @@ namespace XimperShellDock {
         public string? focused_class { get; protected set; default = null; }
 
         private uint polling_source_id = 0;
+        // Output connector -> active workspace ID, and workspace IDs occupied
+        // by ordinary compositor windows. Subclasses refresh both together.
+        protected HashTable<string, string> active_workspace_ids;
+        protected HashTable<string, bool> occupied_workspace_ids;
 
         public signal void windows_changed ();
 
         protected CompositorHelper () {
             running_apps = new GenericArray<RunningApp> ();
+            active_workspace_ids = new HashTable<string, string> (str_hash, str_equal);
+            occupied_workspace_ids = new HashTable<string, bool> (str_hash, str_equal);
         }
 
         public abstract string name { owned get; }
@@ -35,6 +44,12 @@ namespace XimperShellDock {
         public abstract void refresh_clients ();
         protected abstract void focus_running_app (RunningApp running);
         protected abstract void close_running_app (RunningApp running);
+
+        public bool is_active_workspace_empty (string? output) {
+            if (output == null || output.length == 0) return false;
+            var workspace_id = active_workspace_ids.lookup (output);
+            return workspace_id != null && !occupied_workspace_ids.contains (workspace_id);
+        }
 
         public bool is_running (string desktop_id) {
             if (running_apps == null) return false;

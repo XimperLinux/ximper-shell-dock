@@ -388,7 +388,7 @@ namespace XimperShellDock {
                         int64 now = GLib.get_monotonic_time () / 1000;
                         bool in_show_grace = (now - show_timestamp) < SHOW_GRACE_MS;
                         bool in_leave_grace = (now - leave_timestamp) < app.config.hide_delay;
-                        if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !in_show_grace && !in_leave_grace) {
+                        if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !is_active_workspace_empty () && !in_show_grace && !in_leave_grace) {
                             hide_animated ();
                         }
                         return Source.CONTINUE;
@@ -519,6 +519,30 @@ namespace XimperShellDock {
                 update_icon_sizes_to_fit ();
             } else {
                 update_running_icon_focus ();
+            }
+            update_workspace_visibility ();
+        }
+
+        private bool is_active_workspace_empty () {
+            return monitor != null && app.window_tracker.is_active_workspace_empty (
+                monitor.get_connector ()
+            );
+        }
+
+        private void update_workspace_visibility () {
+            if (app.config.dock_mode != DockMode.FLOATING || !autohide_enabled) return;
+            if (is_active_workspace_empty ()) {
+                cancel_hide ();
+                // This path can run while monitor selection tears down and
+                // recreates layer-shell surfaces. Avoid leaving a property
+                // animation targeting a surface that is being destroyed.
+                if (!visible) {
+                    visibility_animation_generation++;
+                    opacity = 1;
+                    set_visible (true);
+                }
+            } else if (visible && !cursor_inside && !popover_open && !dnd_active) {
+                schedule_hide ();
             }
         }
 
@@ -1553,7 +1577,8 @@ namespace XimperShellDock {
                 int64 now = GLib.get_monotonic_time () / 1000;
                 if ((now - show_timestamp) < SHOW_GRACE_MS) return Source.REMOVE;
                 bool on_trigger = linked_trigger != null && linked_trigger.cursor_on_trigger;
-                if (cursor_inside || on_trigger || popover_open || dnd_active) return Source.REMOVE;
+                if (cursor_inside || on_trigger || popover_open || dnd_active ||
+                    is_active_workspace_empty ()) return Source.REMOVE;
                 hide_animated ();
                 return Source.REMOVE;
             });
