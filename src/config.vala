@@ -53,6 +53,8 @@ namespace XimperShellDock {
         public double magnify_radius { get; set; default = 2.0; }
         public int magnify_animation_duration { get; set; default = 120; }
         public int icon_size { get; set; default = 32; }
+        public int hide_delay { get; set; default = 300; }
+        public int floating_margin { get; set; default = 8; }
         public string layer { get; set; default = "top"; }
         public string launcher_fallback { get; set; default = "wofi --show drun"; }
         // Empty means every currently connected monitor.  This preserves the
@@ -111,6 +113,10 @@ namespace XimperShellDock {
                     magnify_animation_duration = (int) root.get_int_member ("magnify_animation_duration");
                 if (root.has_member ("icon_size"))
                     icon_size = (int) root.get_int_member ("icon_size");
+                if (root.has_member ("hide_delay"))
+                    hide_delay = ((int) root.get_int_member ("hide_delay")).clamp (0, 5000);
+                if (root.has_member ("floating_margin"))
+                    floating_margin = ((int) root.get_int_member ("floating_margin")).clamp (0, 128);
                 if (root.has_member ("layer")) {
                     var layer_node = root.get_member ("layer");
                     if (layer_node.get_value_type () == typeof (string))
@@ -197,6 +203,10 @@ namespace XimperShellDock {
             builder.add_int_value (magnify_animation_duration);
             builder.set_member_name ("icon_size");
             builder.add_int_value (icon_size);
+            builder.set_member_name ("hide_delay");
+            builder.add_int_value (hide_delay);
+            builder.set_member_name ("floating_margin");
+            builder.add_int_value (floating_margin);
             builder.set_member_name ("layer");
             builder.add_string_value (LayerShellHelper.normalize_layer_name (layer));
             builder.set_member_name ("launcher_fallback");

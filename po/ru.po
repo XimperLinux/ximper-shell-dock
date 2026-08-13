@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 21:40+0300\n"
+"POT-Creation-Date: 2026-08-14 02:10+0300\n"
 "PO-Revision-Date: 2026-08-09 19:59+0300\n"
 "Last-Translator: Ximper Shell contributors\n"
 "Language-Team: Russian\n"
@@ -19,52 +19,55 @@ msgstr ""
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
 #: src/application.vala:24
-msgid "Pin app to dock"
-msgstr "Закрепить приложение в доке"
+#, fuzzy
+msgid "Add an item to dock"
+msgstr "Добавить папку в док"
 
 #: src/application.vala:24 src/application.vala:25
-msgid "DESKTOP_ID"
-msgstr "ID_ПРИЛОЖЕНИЯ"
+msgid "ITEM"
+msgstr ""
 
 #: src/application.vala:25
-msgid "Unpin app from dock"
-msgstr "Открепить приложение от дока"
+#, fuzzy
+msgid "Remove an item from dock"
+msgstr "Удалить из дока"
+
+#: src/application.vala:26
+msgid "Print configuration and parameter metadata as JSON"
+msgstr ""
 
 #. Pin/Unpin
-#: src/dock-icon.vala:314
+#: src/dock-icon.vala:321
 msgid "Unpin"
 msgstr "Открепить"
 
-#: src/dock-icon.vala:321
+#: src/dock-icon.vala:328
 msgid "Pin to Dock"
 msgstr "Закрепить в доке"
 
-#: src/dock-icon.vala:332
+#: src/dock-icon.vala:339
 msgid "Quit"
 msgstr "Закрыть"
 
-#: src/dock-window.vala:593
+#: src/dock-window.vala:648
 msgid "Applications"
 msgstr "Приложения"
 
-#: src/dock-window.vala:813
+#: src/dock-window.vala:871
 msgid "Settings"
 msgstr "Настройки"
 
-#: src/dock-window.vala:822
+#: src/dock-window.vala:880
 msgid "Add Folder…"
 msgstr "Добавить папку…"
 
-#. A native GTK chooser replaces the old hand-made path popover:
-#. it validates the selected folder and follows platform portal
-#. integration automatically.
-#: src/dock-window.vala:855
-msgid "Add Folder to Dock"
-msgstr "Добавить папку в док"
-
-#: src/dock-window.vala:856
+#: src/dock-window.vala:915
 msgid "Add Folder"
 msgstr "Добавить папку"
+
+#: src/dock-window.vala:925
+msgid "Add Folder to Dock"
+msgstr "Добавить папку в док"
 
 #: src/folder-dock-icon.vala:157 src/folder-dock-icon.vala:273
 msgid "Open in Files"
@@ -267,69 +270,76 @@ msgstr "Выберите мониторы, на которых будет пок
 msgid "Behavior"
 msgstr "Поведение"
 
-#. Autohide
+#: src/settings-window.vala:77
+msgid "Hide delay"
+msgstr "Задержка скрытия"
+
 #: src/settings-window.vala:78
-msgid "Autohide"
-msgstr "Автоскрытие"
+msgid "Time in milliseconds before the floating dock hides"
+msgstr "Время в миллисекундах перед скрытием плавающего дока"
 
-#: src/settings-window.vala:79
-msgid "Hide dock when not in use"
-msgstr "Скрывать док, когда он не используется"
+#: src/settings-window.vala:87
+msgid "Floating dock edge margin"
+msgstr "Отступ плавающего дока от края"
 
-#: src/settings-window.vala:92
+#: src/settings-window.vala:88
+msgid "Distance in pixels from the screen edge"
+msgstr "Расстояние в пикселях от края экрана"
+
+#: src/settings-window.vala:105
 msgid "Show Trash"
 msgstr "Показывать корзину"
 
-#: src/settings-window.vala:93
+#: src/settings-window.vala:106
 msgid "Display the system Trash at the end of the dock"
 msgstr "Показывать системную корзину в конце дока"
 
 #. Hover magnification
-#: src/settings-window.vala:103
+#: src/settings-window.vala:116
 msgid "Magnify icons on hover"
 msgstr "Увеличивать значки при наведении"
 
-#: src/settings-window.vala:104
+#: src/settings-window.vala:117
 msgid "Animate nearby icons when moving the pointer over the dock"
 msgstr "Анимировать соседние значки при перемещении указателя по доку"
 
-#: src/settings-window.vala:113
+#: src/settings-window.vala:126
 msgid "Bounce while launching"
 msgstr "Подпрыгивание при запуске"
 
-#: src/settings-window.vala:114
+#: src/settings-window.vala:127
 msgid "Bounce an app icon until its window appears"
 msgstr "Подпрыгивать значком приложения до появления его окна"
 
-#: src/settings-window.vala:123
+#: src/settings-window.vala:136
 msgid "Bounce speed"
 msgstr "Скорость подпрыгивания"
 
-#: src/settings-window.vala:124
+#: src/settings-window.vala:137
 msgid "Duration of the upward launch bounce in milliseconds"
 msgstr "Длительность движения вверх при запуске в миллисекундах"
 
-#: src/settings-window.vala:133
+#: src/settings-window.vala:146
 msgid "Maximum magnification"
 msgstr "Максимальное увеличение"
 
-#: src/settings-window.vala:134
+#: src/settings-window.vala:147
 msgid "Largest icon size while the pointer is over it"
 msgstr "Наибольший размер значка при наведении указателя"
 
-#: src/settings-window.vala:143
+#: src/settings-window.vala:156
 msgid "Neighbour reach"
 msgstr "Охват соседних значков"
 
-#: src/settings-window.vala:144
+#: src/settings-window.vala:157
 msgid "How many icon widths the wave affects on each side"
 msgstr "На сколько ширин значка волна распространяется в каждую сторону"
 
-#: src/settings-window.vala:153
+#: src/settings-window.vala:166
 msgid "Animation response"
 msgstr "Отклик анимации"
 
-#: src/settings-window.vala:154
+#: src/settings-window.vala:167
 msgid "Time in milliseconds; lower values react faster"
 msgstr "Время в миллисекундах: меньшие значения дают более быстрый отклик"
 
@@ -360,6 +370,21 @@ msgstr "Очистить корзину"
 #: src/trash-dock-icon.vala:221
 msgid "Could not empty Trash."
 msgstr "Не удалось очистить корзину."
+
+#~ msgid "Pin app to dock"
+#~ msgstr "Закрепить приложение в доке"
+
+#~ msgid "DESKTOP_ID"
+#~ msgstr "ID_ПРИЛОЖЕНИЯ"
+
+#~ msgid "Unpin app from dock"
+#~ msgstr "Открепить приложение от дока"
+
+#~ msgid "Autohide"
+#~ msgstr "Автоскрытие"
+
+#~ msgid "Hide dock when not in use"
+#~ msgstr "Скрывать док, когда он не используется"
 
 #~ msgid "0 = background, 1 = bottom, 2 = top, 3 = overlay"
 #~ msgstr "0 = фон, 1 = нижний, 2 = верхний, 3 = наложение"

@@ -198,9 +198,7 @@ namespace XimperShellDock {
         private int DOCK_HEIGHT = 64;
         private int effective_icon_size = 48;
         private int floating_surface_left_margin = 0;
-        private const int HIDE_DELAY_MS = 300;
         private const int SHOW_GRACE_MS = 600;
-        private const int FLOATING_BOTTOM_MARGIN = 8;
         // Below this, the button's target becomes too small to use reliably.
         private const int MIN_ICON_SIZE = 16;
         private const int FLOATING_SIDE_MARGIN = 16;
@@ -217,7 +215,9 @@ namespace XimperShellDock {
             DOCK_HEIGHT = app.config.icon_size + 12;
             effective_icon_size = app.config.icon_size;
 
-            LayerShellHelper.setup_dock_floating (this, 8, LayerShellHelper.parse_layer (app.config.layer));
+            LayerShellHelper.setup_dock_floating (
+                this, app.config.floating_margin, LayerShellHelper.parse_layer (app.config.layer)
+            );
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
                 monitor.notify["geometry"].connect (() => {
@@ -257,6 +257,14 @@ namespace XimperShellDock {
             app.config.notify["bounce-duration"].connect (() => {
                 update_box_bounce_setting (icon_box);
                 update_box_bounce_setting (running_box);
+            });
+            app.config.notify["floating-margin"].connect (() => {
+                if (app.config.dock_mode != DockMode.FLOATING) return;
+                GtkLayerShell.set_margin (
+                    this, GtkLayerShell.Edge.BOTTOM, app.config.floating_margin
+                );
+                if (linked_trigger != null)
+                    linked_trigger.set_edge_margin (app.config.floating_margin);
             });
 
             var motion = new Gtk.EventControllerMotion ();
@@ -356,7 +364,8 @@ namespace XimperShellDock {
             // only the physical dock bar so animated icons may overlap
             // window content above it.
             LayerShellHelper.apply_dock_mode (
-                this, app.config.dock_mode, get_exclusive_zone_height ()
+                this, app.config.dock_mode, get_exclusive_zone_height (),
+                app.config.floating_margin
             );
             if (app.config.dock_mode == DockMode.PINNED)
                 floating_surface_left_margin = 0;
@@ -378,7 +387,7 @@ namespace XimperShellDock {
                         bool on_trigger = linked_trigger != null && linked_trigger.cursor_on_trigger;
                         int64 now = GLib.get_monotonic_time () / 1000;
                         bool in_show_grace = (now - show_timestamp) < SHOW_GRACE_MS;
-                        bool in_leave_grace = (now - leave_timestamp) < HIDE_DELAY_MS;
+                        bool in_leave_grace = (now - leave_timestamp) < app.config.hide_delay;
                         if (visible && !cursor_inside && !on_trigger && !popover_open && !dnd_active && autohide_enabled && !in_show_grace && !in_leave_grace) {
                             hide_animated ();
                         }
@@ -400,15 +409,10 @@ namespace XimperShellDock {
             anim.play ();
         }
 
-        // The edge hotspot is flush with the bottom of the output.  While
-        // revealing an autohidden floating dock, remove its normal visual
-        // margin so the pointer can move into the dock without crossing an
-        // input gap.  This also invalidates a fade-out that may still be in
-        // flight when the pointer returns to the hotspot.
+        // The trigger fills the configured margin, so a floating dock can
+        // stay offset from the edge without creating a pointer input gap.
         public void reveal_from_trigger () {
             if (app.config.dock_mode != DockMode.FLOATING) return;
-
-            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.BOTTOM, 0);
             cancel_hide ();
             visibility_animation_generation++;
             show_timestamp = GLib.get_monotonic_time () / 1000;
@@ -438,7 +442,7 @@ namespace XimperShellDock {
                 opacity = 1;
                 if (app.config.dock_mode == DockMode.FLOATING) {
                     GtkLayerShell.set_margin (
-                        this, GtkLayerShell.Edge.BOTTOM, FLOATING_BOTTOM_MARGIN
+                        this, GtkLayerShell.Edge.BOTTOM, app.config.floating_margin
                     );
                 }
             });
@@ -1544,7 +1548,7 @@ namespace XimperShellDock {
 
         private void schedule_hide () {
             cancel_hide ();
-            hide_timeout_id = Timeout.add (HIDE_DELAY_MS, () => {
+            hide_timeout_id = Timeout.add (app.config.hide_delay, () => {
                 hide_timeout_id = 0;
                 int64 now = GLib.get_monotonic_time () / 1000;
                 if ((now - show_timestamp) < SHOW_GRACE_MS) return Source.REMOVE;

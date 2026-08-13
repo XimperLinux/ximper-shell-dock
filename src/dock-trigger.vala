@@ -4,8 +4,10 @@ namespace XimperShellDock {
 
         public signal void trigger_activated ();
         public bool cursor_on_trigger { get; private set; default = false; }
+        private Gtk.DrawingArea hotspot;
 
-        public DockTrigger (Application app, Gdk.Monitor? monitor = null) {
+        public DockTrigger (Application app, Gdk.Monitor? monitor = null,
+                            int edge_margin = 4) {
             this.title = "Ximper Shell Dock Trigger";
             this.decorated = false;
 
@@ -26,8 +28,8 @@ namespace XimperShellDock {
             remove_css_class ("background");
 
             // DrawingArea draws near-invisible content to keep Wayland surface alive for input
-            var hotspot = new Gtk.DrawingArea ();
-            hotspot.set_size_request (-1, 4);
+            hotspot = new Gtk.DrawingArea ();
+            set_edge_margin (edge_margin);
             hotspot.set_draw_func ((area, cr, w, h) => {
                 cr.set_source_rgba (0, 0, 0, 0.004);
                 cr.set_operator (Cairo.Operator.SOURCE);
@@ -69,6 +71,12 @@ namespace XimperShellDock {
             ((Gtk.Widget) hotspot).add_controller (file_drag);
 
             set_child (hotspot);
+        }
+
+        public void set_edge_margin (int edge_margin) {
+            // Keep input continuous from the physical edge to a floating
+            // dock that is intentionally offset from it.
+            hotspot.set_size_request (-1, int.max (edge_margin, 4));
         }
     }
 }

@@ -73,6 +73,34 @@ namespace XimperShellDock {
             var behavior_group = new Adw.PreferencesGroup ();
             behavior_group.title = _("Behavior");
 
+            var hide_delay_row = new Adw.SpinRow.with_range (0, 5000, 50);
+            hide_delay_row.title = _("Hide delay");
+            hide_delay_row.subtitle = _("Time in milliseconds before the floating dock hides");
+            hide_delay_row.value = app.config.hide_delay;
+            hide_delay_row.notify["value"].connect (() => {
+                app.config.hide_delay = (int) hide_delay_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (hide_delay_row);
+
+            var floating_margin_row = new Adw.SpinRow.with_range (0, 128, 1);
+            floating_margin_row.title = _("Floating dock edge margin");
+            floating_margin_row.subtitle = _("Distance in pixels from the screen edge");
+            floating_margin_row.value = app.config.floating_margin;
+            floating_margin_row.notify["value"].connect (() => {
+                app.config.floating_margin = (int) floating_margin_row.value;
+                app.config.save ();
+            });
+            behavior_group.add (floating_margin_row);
+
+            hide_delay_row.visible = app.config.dock_mode == DockMode.FLOATING;
+            floating_margin_row.visible = app.config.dock_mode == DockMode.FLOATING;
+            mode_row.notify["selected"].connect (() => {
+                bool floating = mode_row.selected == 0;
+                hide_delay_row.visible = floating;
+                floating_margin_row.visible = floating;
+            });
+
             var trash_row = new Adw.SwitchRow ();
             trash_row.title = _("Show Trash");
             trash_row.subtitle = _("Display the system Trash at the end of the dock");

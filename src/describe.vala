@@ -15,6 +15,8 @@ namespace XimperShellDock {
         builder.set_member_name ("magnify_radius"); builder.add_double_value (config.magnify_radius);
         builder.set_member_name ("magnify_animation_duration"); builder.add_int_value (config.magnify_animation_duration);
         builder.set_member_name ("icon_size"); builder.add_int_value (config.icon_size);
+        builder.set_member_name ("hide_delay"); builder.add_int_value (config.hide_delay);
+        builder.set_member_name ("floating_margin"); builder.add_int_value (config.floating_margin);
         builder.set_member_name ("layer"); builder.add_string_value (config.layer);
         builder.set_member_name ("launcher_fallback"); builder.add_string_value (config.launcher_fallback);
         builder.set_member_name ("monitors");
@@ -68,6 +70,8 @@ namespace XimperShellDock {
         add_number_property (builder, "magnify_radius", "Magnification radius", 2.0, 1.0, 8.0);
         add_integer_property (builder, "magnify_animation_duration", "Magnification animation duration", 120, 0, 1000);
         add_integer_property (builder, "icon_size", "Icon size", 32, 16, 128);
+        add_integer_property (builder, "hide_delay", "Hide delay", 300, 0, 5000);
+        add_integer_property (builder, "floating_margin", "Floating dock edge margin", 8, 0, 128);
         add_enum_property (builder, "layer", "Layer-shell layer", "top", { "background", "bottom", "top", "overlay" });
         add_string_property (builder, "launcher_fallback", "Fallback launcher command", "wofi --show drun");
         builder.end_object ();

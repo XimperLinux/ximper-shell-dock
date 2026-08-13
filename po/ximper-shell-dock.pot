@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 21:40+0300\n"
+"POT-Creation-Date: 2026-08-14 02:10+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,51 +18,52 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: src/application.vala:24
-msgid "Pin app to dock"
+msgid "Add an item to dock"
 msgstr ""
 
 #: src/application.vala:24 src/application.vala:25
-msgid "DESKTOP_ID"
+msgid "ITEM"
 msgstr ""
 
 #: src/application.vala:25
-msgid "Unpin app from dock"
+msgid "Remove an item from dock"
+msgstr ""
+
+#: src/application.vala:26
+msgid "Print configuration and parameter metadata as JSON"
 msgstr ""
 
 #. Pin/Unpin
-#: src/dock-icon.vala:314
+#: src/dock-icon.vala:321
 msgid "Unpin"
 msgstr ""
 
-#: src/dock-icon.vala:321
+#: src/dock-icon.vala:328
 msgid "Pin to Dock"
 msgstr ""
 
-#: src/dock-icon.vala:332
+#: src/dock-icon.vala:339
 msgid "Quit"
 msgstr ""
 
-#: src/dock-window.vala:593
+#: src/dock-window.vala:648
 msgid "Applications"
 msgstr ""
 
-#: src/dock-window.vala:813
+#: src/dock-window.vala:871
 msgid "Settings"
 msgstr ""
 
-#: src/dock-window.vala:822
+#: src/dock-window.vala:880
 msgid "Add Folder…"
 msgstr ""
 
-#. A native GTK chooser replaces the old hand-made path popover:
-#. it validates the selected folder and follows platform portal
-#. integration automatically.
-#: src/dock-window.vala:855
-msgid "Add Folder to Dock"
+#: src/dock-window.vala:915
+msgid "Add Folder"
 msgstr ""
 
-#: src/dock-window.vala:856
-msgid "Add Folder"
+#: src/dock-window.vala:925
+msgid "Add Folder to Dock"
 msgstr ""
 
 #: src/folder-dock-icon.vala:157 src/folder-dock-icon.vala:273
@@ -266,69 +267,76 @@ msgstr ""
 msgid "Behavior"
 msgstr ""
 
-#. Autohide
+#: src/settings-window.vala:77
+msgid "Hide delay"
+msgstr ""
+
 #: src/settings-window.vala:78
-msgid "Autohide"
+msgid "Time in milliseconds before the floating dock hides"
 msgstr ""
 
-#: src/settings-window.vala:79
-msgid "Hide dock when not in use"
+#: src/settings-window.vala:87
+msgid "Floating dock edge margin"
 msgstr ""
 
-#: src/settings-window.vala:92
+#: src/settings-window.vala:88
+msgid "Distance in pixels from the screen edge"
+msgstr ""
+
+#: src/settings-window.vala:105
 msgid "Show Trash"
 msgstr ""
 
-#: src/settings-window.vala:93
+#: src/settings-window.vala:106
 msgid "Display the system Trash at the end of the dock"
 msgstr ""
 
 #. Hover magnification
-#: src/settings-window.vala:103
+#: src/settings-window.vala:116
 msgid "Magnify icons on hover"
 msgstr ""
 
-#: src/settings-window.vala:104
+#: src/settings-window.vala:117
 msgid "Animate nearby icons when moving the pointer over the dock"
 msgstr ""
 
-#: src/settings-window.vala:113
+#: src/settings-window.vala:126
 msgid "Bounce while launching"
 msgstr ""
 
-#: src/settings-window.vala:114
+#: src/settings-window.vala:127
 msgid "Bounce an app icon until its window appears"
 msgstr ""
 
-#: src/settings-window.vala:123
+#: src/settings-window.vala:136
 msgid "Bounce speed"
 msgstr ""
 
-#: src/settings-window.vala:124
+#: src/settings-window.vala:137
 msgid "Duration of the upward launch bounce in milliseconds"
 msgstr ""
 
-#: src/settings-window.vala:133
+#: src/settings-window.vala:146
 msgid "Maximum magnification"
 msgstr ""
 
-#: src/settings-window.vala:134
+#: src/settings-window.vala:147
 msgid "Largest icon size while the pointer is over it"
 msgstr ""
 
-#: src/settings-window.vala:143
+#: src/settings-window.vala:156
 msgid "Neighbour reach"
 msgstr ""
 
-#: src/settings-window.vala:144
+#: src/settings-window.vala:157
 msgid "How many icon widths the wave affects on each side"
 msgstr ""
 
-#: src/settings-window.vala:153
+#: src/settings-window.vala:166
 msgid "Animation response"
 msgstr ""
 
-#: src/settings-window.vala:154
+#: src/settings-window.vala:167
 msgid "Time in milliseconds; lower values react faster"
 msgstr ""
 

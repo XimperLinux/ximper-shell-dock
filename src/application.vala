@@ -248,7 +248,9 @@ namespace XimperShellDock {
                 if (dock_triggers.length == 0) {
                     for (uint i = 0; i < dock_windows.length; i++) {
                         var dock = dock_windows[i];
-                        var trigger = new DockTrigger (this, dock.monitor);
+                        var trigger = new DockTrigger (
+                            this, dock.monitor, config.floating_margin
+                        );
                         trigger.trigger_activated.connect (() => {
                             dock.reveal_from_trigger ();
                         });
