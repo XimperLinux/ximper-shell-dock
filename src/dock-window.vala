@@ -659,12 +659,10 @@ namespace XimperShellDock {
             // DropTarget on icon_box — reorder with animated spacer gap
             var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             icon_drop.motion.connect ((x, y) => {
-                set_external_drag_active (true);
-                // File managers commonly offer a directory both as a
-                // Gdk.FileList and as text/uri-list.  Without this guard GTK
-                // selects our legacy string target while hovering an app icon,
-                // so the reorder spacer reacts to a folder drag.
-                if (drop_contains_file_list (icon_drop)) {
+                // A string from Tile Menu or another application must fall
+                // through to the dock-wide target.  This target is reserved
+                // strictly for rearranging an item already dragged from Dock.
+                if (!item_drag_active || drop_contains_file_list (icon_drop)) {
                     app_drag_gaps.clear ();
                     return (Gdk.DragAction) 0;
                 }
@@ -672,13 +670,10 @@ namespace XimperShellDock {
                 return Gdk.DragAction.MOVE;
             });
             icon_drop.leave.connect (() => {
-                schedule_external_drag_end ();
-                // Return spacer to source position if dragging from dock
-                app_drag_gaps.restore_source_gap ();
+                if (item_drag_active) app_drag_gaps.restore_source_gap ();
             });
             icon_drop.drop.connect ((val, x, y) => {
-                schedule_external_drag_end ();
-                if (drop_contains_file_list (icon_drop)) {
+                if (!item_drag_active || drop_contains_file_list (icon_drop)) {
                     app_drag_gaps.clear ();
                     return false;
                 }
@@ -694,8 +689,7 @@ namespace XimperShellDock {
 
             var folder_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             folder_drop.motion.connect ((x, y) => {
-                set_external_drag_active (true);
-                if (drop_contains_file_list (folder_drop)) {
+                if (!item_drag_active || drop_contains_file_list (folder_drop)) {
                     folder_drag_gaps.clear ();
                     return (Gdk.DragAction) 0;
                 }
@@ -703,12 +697,13 @@ namespace XimperShellDock {
                 return Gdk.DragAction.MOVE;
             });
             folder_drop.leave.connect (() => {
-                schedule_external_drag_end ();
-                folder_drag_gaps.restore_source_gap ();
+                if (item_drag_active) folder_drag_gaps.restore_source_gap ();
             });
             folder_drop.drop.connect ((val, x, y) => {
-                schedule_external_drag_end ();
-                if (drop_contains_file_list (folder_drop)) return false;
+                if (!item_drag_active || drop_contains_file_list (folder_drop)) {
+                    folder_drag_gaps.clear ();
+                    return false;
+                }
                 var source_id = (string) val;
                 if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
                 var path = ConfigManager.item_folder_path (source_id);
@@ -720,7 +715,9 @@ namespace XimperShellDock {
             });
             folder_box.add_controller (folder_drop);
 
-            // DropTarget on dock — accept apps dragged from grid or other sources
+            // The dock-wide fallback accepts external app drags everywhere on
+            // the visible dock, including its padding.  Item boxes above
+            // claim only drags whose source is another Dock item.
             var dock_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             dock_drop.motion.connect ((x, y) => {
                 set_external_drag_active (true);
@@ -735,13 +732,14 @@ namespace XimperShellDock {
                 add_drop_item (normalize_drop_item (source_id));
                 return true;
             });
-            main_box.add_controller (dock_drop);
+            dock_content.add_controller (dock_drop);
 
             // DnD does not bubble from a child DropTarget to its parent.
             // Register the native file target on each folder-accepting visual
             // zone, so users can drop a folder anywhere among dock items.
             // TrashDockIcon intentionally owns its area exclusively: a file
             // dropped there must be moved to Trash, never added as a Stack.
+            setup_file_drop_target (dock_content);
             setup_file_drop_target (grid_wrapper);
             setup_file_drop_target (icon_box);
             setup_file_drop_target (running_box);
@@ -1389,6 +1387,11 @@ namespace XimperShellDock {
                 });
                 folder.stack_requested.connect ((icon) => {
                     open_folder_stack (icon);
+                });
+                folder.popover_state_changed.connect ((open) => {
+                    popover_open = open;
+                    if (open) cancel_hide ();
+                    else if (autohide_enabled) schedule_hide ();
                 });
                 folder.drag_state_changed.connect ((active) => {
                     item_drag_active = active;
