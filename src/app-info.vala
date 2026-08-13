@@ -109,6 +109,19 @@ namespace XimperShellDock {
             }
         }
 
+        public bool matches_window_class (string window_class) {
+            var app_id = desktop_id.replace (".desktop", "");
+            if (window_class.down () == app_id.down ()) return true;
+
+            var parts = app_id.split (".");
+            if (parts.length > 0 &&
+                window_class.down () == parts[parts.length - 1].down ()) return true;
+
+            var startup_wm_class = app_info.get_string ("StartupWMClass");
+            return startup_wm_class != null && startup_wm_class.length > 0 &&
+                window_class.down () == startup_wm_class.down ();
+        }
+
         public string[] list_actions () {
             return app_info.list_actions ();
         }

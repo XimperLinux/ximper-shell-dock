@@ -43,11 +43,6 @@ namespace XimperShellDock {
                 close_stack ();
                 return true;
             });
-            notify["is-active"].connect (() => {
-                // The layer surface remains non-modal for external DnD, but
-                // should not linger after the user activates another window.
-                if (open && !is_active && !embedded_popover_open) close_stack ();
-            });
         }
 
         public void present_folder (FolderDockIcon folder, int left, int bottom) {
@@ -86,12 +81,9 @@ namespace XimperShellDock {
             embedded_popover_open = value;
             if (value) return;
 
-            // Let GTK restore focus to the stack before deciding whether the
-            // popover was dismissed by switching to another application.
-            Idle.add (() => {
-                if (open && !embedded_popover_open && !is_active) close_stack ();
-                return Source.REMOVE;
-            });
+            // A layer-shell surface is not guaranteed to become active when
+            // shown.  Closing here would make the stack disappear immediately
+            // on compositors that keep focus on the dock or another window.
         }
 
     }

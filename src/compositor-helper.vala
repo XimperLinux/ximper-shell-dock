@@ -30,8 +30,8 @@ namespace XimperShellDock {
         public abstract void start ();
         public abstract void stop ();
         public abstract void refresh_clients ();
-        public abstract void focus_window (string desktop_id);
-        public abstract void close_app (string desktop_id);
+        protected abstract void focus_running_app (RunningApp running);
+        protected abstract void close_running_app (RunningApp running);
 
         public bool is_running (string desktop_id) {
             if (running_apps == null) return false;
@@ -62,11 +62,27 @@ namespace XimperShellDock {
             return false;
         }
 
-        protected RunningApp? find_running_app (string desktop_id) {
-            if (running_apps == null) return null;
-            var app_id = desktop_id.replace (".desktop", "");
+        public bool is_running_app (AppEntry entry) {
+            return find_running_app (entry) != null;
+        }
+
+        public bool is_focused_app (AppEntry entry) {
+            return focused_class != null && entry.matches_window_class (focused_class);
+        }
+
+        public void focus_app (AppEntry entry) {
+            var running = find_running_app (entry);
+            if (running != null) focus_running_app (running);
+        }
+
+        public void close_app_entry (AppEntry entry) {
+            var running = find_running_app (entry);
+            if (running != null) close_running_app (running);
+        }
+
+        private RunningApp? find_running_app (AppEntry entry) {
             for (uint i = 0; i < running_apps.length; i++) {
-                if (match_class (running_apps[i].app_class, app_id)) return running_apps[i];
+                if (entry.matches_window_class (running_apps[i].app_class)) return running_apps[i];
             }
             return null;
         }

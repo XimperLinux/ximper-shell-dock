@@ -453,8 +453,8 @@ namespace XimperShellDock {
             while (child != null) {
                 if (child is DockIcon) {
                     var icon = (DockIcon) child;
-                    icon.set_running (tracker.is_running (icon.desktop_id));
-                    icon.set_focused (tracker.is_focused (icon.desktop_id));
+                    icon.set_running (tracker.is_running_app (icon.app_entry));
+                    icon.set_focused (tracker.is_focused_app (icon.app_entry));
                 }
                 child = child.get_next_sibling ();
             }
@@ -478,7 +478,9 @@ namespace XimperShellDock {
                 bool already_shown = false;
 
                 for (uint j = 0; j < shown_classes.length; j++) {
-                    if (tracker.matches_desktop_id (running.app_class, shown_classes[j])) {
+                    var shown_entry = find_entry_by_desktop_id (shown_classes[j]);
+                    if (shown_entry != null &&
+                        shown_entry.matches_window_class (running.app_class)) {
                         already_shown = true;
                         break;
                     }
@@ -528,13 +530,13 @@ namespace XimperShellDock {
                                          app.config.bounce_on_launch,
                                          app.config.bounce_duration);
                 icon.set_running (true);
-                icon.set_focused (app.window_tracker.is_focused (icon.desktop_id));
+                icon.set_focused (app.window_tracker.is_focused_app (icon.app_entry));
                 icon.pin_requested.connect ((id) => { pin_app (id); });
                 icon.focus_requested.connect ((id) => {
-                    app.window_tracker.focus_window (id);
+                    app.window_tracker.focus_app (icon.app_entry);
                 });
                 icon.close_requested.connect ((id) => {
-                    app.window_tracker.close_app (id);
+                    app.window_tracker.close_app (icon.app_entry);
                 });
                 icon.popover_state_changed.connect ((open) => {
                     popover_open = open;
@@ -554,7 +556,7 @@ namespace XimperShellDock {
                 if (child is DockIcon) {
                     var icon = (DockIcon) child;
                     icon.set_running (true);
-                    icon.set_focused (app.window_tracker.is_focused (icon.desktop_id));
+                    icon.set_focused (app.window_tracker.is_focused_app (icon.app_entry));
                 }
                 child = child.get_next_sibling ();
             }
@@ -564,15 +566,16 @@ namespace XimperShellDock {
             var apps = app.app_provider.apps;
             if (apps == null) return null;
             for (uint i = 0; i < apps.length; i++) {
-                var id = apps[i].desktop_id.replace (".desktop", "");
-                if (id == app_class || id.down () == app_class.down ()) {
-                    return apps[i];
-                }
-                var parts = id.split (".");
-                if (parts.length > 0 &&
-                    parts[parts.length - 1].down () == app_class.down ()) {
-                    return apps[i];
-                }
+                if (apps[i].matches_window_class (app_class)) return apps[i];
+            }
+            return null;
+        }
+
+        private AppEntry? find_entry_by_desktop_id (string desktop_id) {
+            var apps = app.app_provider.apps;
+            if (apps == null) return null;
+            for (uint i = 0; i < apps.length; i++) {
+                if (apps[i].desktop_id == desktop_id) return apps[i];
             }
             return null;
         }
@@ -1338,10 +1341,10 @@ namespace XimperShellDock {
                         unpin_app (id);
                     });
                     icon.focus_requested.connect ((id) => {
-                        app.window_tracker.focus_window (id);
+                        app.window_tracker.focus_app (icon.app_entry);
                     });
                     icon.close_requested.connect ((id) => {
-                        app.window_tracker.close_app (id);
+                        app.window_tracker.close_app (icon.app_entry);
                     });
                     icon.popover_state_changed.connect ((open) => {
                         popover_open = open;

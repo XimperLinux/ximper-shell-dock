@@ -138,6 +138,12 @@ namespace XimperShellDock {
             dock_windows = new GenericArray<DockWindow> ();
             create_configured_docks ();
             setup_autohide ();
+            // Newly created surfaces need the already-cached window state;
+            // waiting for the next compositor event leaves their indicators
+            // empty until a workspace change.
+            for (uint i = 0; i < dock_windows.length; i++) {
+                dock_windows[i].update_indicators ();
+            }
         }
 
         private void toggle_grid () {

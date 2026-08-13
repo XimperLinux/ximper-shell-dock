@@ -7,6 +7,7 @@ namespace XimperShellDock {
         private IOChannel? event_channel;
         private uint event_source_id = 0;
         private Socket? event_socket;
+        private bool? lua_dispatch_supported = null;
 
         public override void start () {
             refresh_clients ();
@@ -26,36 +27,60 @@ namespace XimperShellDock {
             event_socket = null;
         }
 
-        public override void focus_window (string desktop_id) {
-            var running = find_running_app (desktop_id);
-            if (running == null) return;
-
+        protected override void focus_running_app (RunningApp running) {
             try {
-                Process.spawn_command_line_async (
-                    "hyprctl dispatch focuswindow " + Shell.quote ("class:" + running.app_class)
-                );
+                var selector = running.window_id != null && running.window_id.length > 0
+                    ? "address:" + running.window_id : "class:" + running.app_class;
+                var command = lua_dispatch_is_supported ()
+                    ? "hyprctl dispatch " + Shell.quote (
+                        "hl.dsp.focus({ window = \"" + selector + "\" })"
+                    )
+                    : "hyprctl dispatch focuswindow " + Shell.quote (selector);
+                Process.spawn_command_line_async (command);
             } catch (Error e) {
                 warning ("Failed to focus Hyprland window: %s", e.message);
             }
         }
 
-        public override void close_app (string desktop_id) {
-            var running = find_running_app (desktop_id);
-            if (running == null) return;
-
+        protected override void close_running_app (RunningApp running) {
             try {
-                if (running.window_id != null && running.window_id.length > 0) {
-                    Process.spawn_command_line_async (
-                        "hyprctl dispatch closewindow " + Shell.quote ("address:" + running.window_id)
-                    );
-                } else {
-                    Process.spawn_command_line_async (
-                        "hyprctl dispatch closewindow " + Shell.quote ("class:" + running.app_class)
-                    );
-                }
+                var selector = running.window_id != null && running.window_id.length > 0
+                    ? "address:" + running.window_id : "class:" + running.app_class;
+                var command = lua_dispatch_is_supported ()
+                    ? "hyprctl dispatch " + Shell.quote (
+                        "hl.dsp.window.close({ window = \"" + selector + "\" })"
+                    )
+                    : "hyprctl dispatch closewindow " + Shell.quote (selector);
+                Process.spawn_command_line_async (command);
             } catch (Error e) {
                 warning ("Failed to close Hyprland window: %s", e.message);
             }
+        }
+
+        private bool lua_dispatch_is_supported () {
+            if (lua_dispatch_supported != null) return lua_dispatch_supported;
+
+            lua_dispatch_supported = false;
+            try {
+                string stdout_buf;
+                int exit_status;
+                Process.spawn_command_line_sync (
+                    "hyprctl version",
+                    out stdout_buf, null, out exit_status
+                );
+                if (exit_status != 0 || stdout_buf == null) return false;
+
+                var regex = new Regex ("([0-9]+)\\.([0-9]+)");
+                MatchInfo match_info;
+                if (regex.match (stdout_buf, 0, out match_info)) {
+                    int major = int.parse (match_info.fetch (1));
+                    int minor = int.parse (match_info.fetch (2));
+                    lua_dispatch_supported = major > 0 || minor >= 55;
+                }
+            } catch (Error e) {
+                warning ("Cannot determine Hyprland version: %s", e.message);
+            }
+            return lua_dispatch_supported;
         }
 
         private void connect_event_socket () {

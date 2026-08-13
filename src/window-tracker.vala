@@ -35,24 +35,20 @@ namespace XimperShellDock {
             helper.stop ();
         }
 
-        public bool is_running (string desktop_id) {
-            return helper.is_running (desktop_id);
+        public bool is_running_app (AppEntry entry) {
+            return helper.is_running_app (entry);
         }
 
-        public bool is_focused (string desktop_id) {
-            return helper.is_focused (desktop_id);
+        public bool is_focused_app (AppEntry entry) {
+            return helper.is_focused_app (entry);
         }
 
-        public bool matches_desktop_id (string window_class, string desktop_id) {
-            return helper.matches_desktop_id (window_class, desktop_id);
+        public void focus_app (AppEntry entry) {
+            helper.focus_app (entry);
         }
 
-        public void focus_window (string desktop_id) {
-            helper.focus_window (desktop_id);
-        }
-
-        public void close_app (string desktop_id) {
-            helper.close_app (desktop_id);
+        public void close_app (AppEntry entry) {
+            helper.close_app_entry (entry);
         }
     }
 }

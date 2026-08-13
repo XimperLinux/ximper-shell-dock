@@ -40,9 +40,8 @@ namespace XimperShellDock {
             }
         }
 
-        public override void focus_window (string desktop_id) {
-            var running = find_running_app (desktop_id);
-            if (running == null || running.window_id == null) return;
+        protected override void focus_running_app (RunningApp running) {
+            if (running.window_id == null) return;
 
             try {
                 Process.spawn_command_line_async (
@@ -53,9 +52,8 @@ namespace XimperShellDock {
             }
         }
 
-        public override void close_app (string desktop_id) {
-            var running = find_running_app (desktop_id);
-            if (running == null || running.window_id == null) return;
+        protected override void close_running_app (RunningApp running) {
+            if (running.window_id == null) return;
 
             try {
                 Process.spawn_command_line_async (
