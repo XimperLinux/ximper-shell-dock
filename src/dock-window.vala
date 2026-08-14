@@ -736,7 +736,7 @@ namespace XimperShellDock {
             // DropTarget on icon_box — reorder with animated spacer gap
             var icon_drop = new Gtk.DropTarget (typeof (string), Gdk.DragAction.MOVE);
             icon_drop.motion.connect ((x, y) => {
-                // A string from Tile Menu or another application must fall
+                // A string from Launcher or another application must fall
                 // through to the dock-wide target.  This target is reserved
                 // strictly for rearranging an item already dragged from Dock.
                 if (!item_drag_active || drop_contains_file_list (icon_drop)) {
@@ -828,7 +828,7 @@ namespace XimperShellDock {
         }
 
         // Keep file-manager DnD separate from the string protocol used by
-        // DockIcon and Tile Menu.  A file list has to be handled exclusively
+        // DockIcon and Launcher.  A file list has to be handled exclusively
         // by file_drop, never by an app reorder or pin target.
         private bool drop_contains_file_list (Gtk.DropTarget target) {
             var drop = target.get_current_drop ();

@@ -164,9 +164,9 @@ namespace XimperShellDock {
                 try {
                     var conn = Bus.get_sync (BusType.SESSION, null);
                     conn.call_sync (
-                        "ru.ximperlinux.shell.TileMenu",
-                        "/ru/ximperlinux/shell/TileMenu",
-                        "ru.ximperlinux.shell.TileMenu",
+                        "ru.ximperlinux.shell.Launcher",
+                        "/ru/ximperlinux/shell/Launcher",
+                        "ru.ximperlinux.shell.Launcher",
                         "Toggle",
                         null, null,
                         DBusCallFlags.NONE, 500, null

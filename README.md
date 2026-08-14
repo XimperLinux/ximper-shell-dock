@@ -16,7 +16,7 @@ Supports Hyprland and Niri through compositor helpers.
 - Hover magnification wave with configurable scale, neighbour reach, and response speed; clicks and drag-and-drop also work over the enlarged part of an icon.
 - Optional launch bounce that continues until the application window is detected.
 - Dock width adapts to the monitor: icons shrink only when the configured size cannot fit.
-- Reorder application icons and Folder Stacks by dragging them; drop an application from the tile menu to pin it. Reorder feedback keeps a stable animated gap.
+- Reorder application icons and Folder Stacks by dragging them; drop an application from the launcher to pin it. Reorder feedback keeps a stable animated gap.
 - Add folders as Dock Stacks by dragging a directory from the file manager onto any part of the dock, or through the dock context menu.
   Stack contents open in a dedicated layer-shell surface as a configurable scrollable grid or list; file previews use the system thumbnail cache and items can be dragged into other applications.
 - Optional Trash at the end of the dock: open it with a click, move files there by dropping them, and empty it from its context menu. Its icon reflects whether Trash contains files.
@@ -89,7 +89,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `floating_margin` | int | `8` | Distance between a floating dock and the screen edge, in pixels (0–128) |
 | `monitors` | string[] | omitted | Monitor connector names on which to show the dock; when omitted or empty, show it on every monitor |
 | `layer` | string | `"top"` | Layer shell layer: `"background"`, `"bottom"`, `"top"`, or `"overlay"`. Numeric values from older configurations are migrated automatically when saved. |
-| `launcher_fallback` | string | `"wofi --show drun"` | Command to run when tile menu is unavailable |
+| `launcher_fallback` | string | `"wofi --show drun"` | Command to run when launcher is unavailable |
 | `dock_items` | string[] | | Ordered dock items: applications in `app:<desktop-id>` format and special entries in `folder:<absolute-path>` format |
 | `dock_folders` | object[] | | Folder Stacks; see below |
 
