@@ -7,6 +7,7 @@ namespace XimperShellDock {
         builder.set_member_name ("config");
         builder.begin_object ();
         builder.set_member_name ("mode"); builder.add_string_value (config.dock_mode.to_string ());
+        builder.set_member_name ("position"); builder.add_string_value (config.dock_position.to_string ());
         builder.set_member_name ("show_trash"); builder.add_boolean_value (config.show_trash);
         builder.set_member_name ("magnify_on_hover"); builder.add_boolean_value (config.magnify_on_hover);
         builder.set_member_name ("bounce_on_launch"); builder.add_boolean_value (config.bounce_on_launch);
@@ -62,6 +63,7 @@ namespace XimperShellDock {
         builder.set_member_name ("properties");
         builder.begin_object ();
         add_enum_property (builder, "mode", "Dock mode", "floating", { "floating", "pinned" });
+        add_enum_property (builder, "position", "Dock position", "bottom", { "bottom", "top", "left", "right" });
         add_boolean_property (builder, "show_trash", "Show Trash", false);
         add_boolean_property (builder, "magnify_on_hover", "Magnify icons on hover", false);
         add_boolean_property (builder, "bounce_on_launch", "Bounce icon on launch", false);

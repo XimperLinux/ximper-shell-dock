@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ximper-shell-dock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-14 02:10+0300\n"
+"POT-Creation-Date: 2026-08-16 12:24+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,67 +34,67 @@ msgid "Print configuration and parameter metadata as JSON"
 msgstr ""
 
 #. Pin/Unpin
-#: src/dock-icon.vala:321
+#: src/dock-icon.vala:356
 msgid "Unpin"
 msgstr ""
 
-#: src/dock-icon.vala:328
+#: src/dock-icon.vala:363
 msgid "Pin to Dock"
 msgstr ""
 
-#: src/dock-icon.vala:339
+#: src/dock-icon.vala:374
 msgid "Quit"
 msgstr ""
 
-#: src/dock-window.vala:648
+#: src/dock-window.vala:761
 msgid "Applications"
 msgstr ""
 
-#: src/dock-window.vala:871
+#: src/dock-window.vala:994
 msgid "Settings"
 msgstr ""
 
-#: src/dock-window.vala:880
+#: src/dock-window.vala:1003
 msgid "Add Folder…"
 msgstr ""
 
-#: src/dock-window.vala:915
+#: src/dock-window.vala:1038
 msgid "Add Folder"
 msgstr ""
 
-#: src/dock-window.vala:925
+#: src/dock-window.vala:1048
 msgid "Add Folder to Dock"
 msgstr ""
 
-#: src/folder-dock-icon.vala:157 src/folder-dock-icon.vala:273
+#: src/folder-dock-icon.vala:183 src/folder-dock-icon.vala:299
 msgid "Open in Files"
 msgstr ""
 
-#: src/folder-dock-icon.vala:163
+#: src/folder-dock-icon.vala:189
 msgid "Stack Settings…"
 msgstr ""
 
-#: src/folder-dock-icon.vala:169
+#: src/folder-dock-icon.vala:195
 msgid "Remove from Dock"
 msgstr ""
 
-#: src/folder-dock-icon.vala:281
+#: src/folder-dock-icon.vala:307
 msgid "Close Stack"
 msgstr ""
 
-#: src/folder-dock-icon.vala:411
+#: src/folder-dock-icon.vala:437
 msgid "Folder is empty"
 msgstr ""
 
-#: src/folder-dock-icon.vala:416
+#: src/folder-dock-icon.vala:442
 msgid "Folder is unavailable"
 msgstr ""
 
-#: src/folder-dock-icon.vala:564
+#: src/folder-dock-icon.vala:590
 msgid "Remove from Favorites"
 msgstr ""
 
-#: src/folder-dock-icon.vala:564
+#: src/folder-dock-icon.vala:590
 msgid "Add to Favorites"
 msgstr ""
 
@@ -220,150 +220,166 @@ msgstr ""
 msgid "Pinned"
 msgstr ""
 
-#. Icon size
+#: src/settings-window.vala:40
+msgid "Position"
+msgstr ""
+
 #: src/settings-window.vala:41
-msgid "Icon Size"
+msgid "Screen edge where the dock is displayed"
+msgstr ""
+
+#: src/settings-window.vala:42 src/settings-window.vala:74
+msgid "Bottom"
 msgstr ""
 
 #: src/settings-window.vala:42
+msgid "Left"
+msgstr ""
+
+#: src/settings-window.vala:42
+msgid "Right"
+msgstr ""
+
+#. Icon size
+#: src/settings-window.vala:60
+msgid "Icon Size"
+msgstr ""
+
+#: src/settings-window.vala:61
 msgid "Size of dock icons in pixels"
 msgstr ""
 
 #. Layer
-#: src/settings-window.vala:52
+#: src/settings-window.vala:71
 msgid "Layer"
 msgstr ""
 
-#: src/settings-window.vala:53
+#: src/settings-window.vala:72
 msgid "Choose the layer where the dock is displayed"
 msgstr ""
 
-#: src/settings-window.vala:55
+#: src/settings-window.vala:74
 msgid "Background"
 msgstr ""
 
-#: src/settings-window.vala:55
-msgid "Bottom"
-msgstr ""
-
-#: src/settings-window.vala:55
+#: src/settings-window.vala:74
 msgid "Top"
 msgstr ""
 
-#: src/settings-window.vala:55
+#: src/settings-window.vala:74
 msgid "Overlay"
 msgstr ""
 
-#: src/settings-window.vala:67
+#: src/settings-window.vala:86
 msgid "Monitors"
 msgstr ""
 
-#: src/settings-window.vala:68
+#: src/settings-window.vala:87
 msgid "Choose the monitors where the dock is shown"
 msgstr ""
 
 #. Behavior group
-#: src/settings-window.vala:74
+#: src/settings-window.vala:93
 msgid "Behavior"
 msgstr ""
 
-#: src/settings-window.vala:77
+#: src/settings-window.vala:96
 msgid "Hide delay"
 msgstr ""
 
-#: src/settings-window.vala:78
+#: src/settings-window.vala:97
 msgid "Time in milliseconds before the floating dock hides"
 msgstr ""
 
-#: src/settings-window.vala:87
+#: src/settings-window.vala:106
 msgid "Floating dock edge margin"
 msgstr ""
 
-#: src/settings-window.vala:88
+#: src/settings-window.vala:107
 msgid "Distance in pixels from the screen edge"
 msgstr ""
 
-#: src/settings-window.vala:105
+#: src/settings-window.vala:124
 msgid "Show Trash"
 msgstr ""
 
-#: src/settings-window.vala:106
+#: src/settings-window.vala:125
 msgid "Display the system Trash at the end of the dock"
 msgstr ""
 
 #. Hover magnification
-#: src/settings-window.vala:116
+#: src/settings-window.vala:135
 msgid "Magnify icons on hover"
 msgstr ""
 
-#: src/settings-window.vala:117
+#: src/settings-window.vala:136
 msgid "Animate nearby icons when moving the pointer over the dock"
 msgstr ""
 
-#: src/settings-window.vala:126
+#: src/settings-window.vala:145
 msgid "Bounce while launching"
 msgstr ""
 
-#: src/settings-window.vala:127
+#: src/settings-window.vala:146
 msgid "Bounce an app icon until its window appears"
 msgstr ""
 
-#: src/settings-window.vala:136
+#: src/settings-window.vala:155
 msgid "Bounce speed"
 msgstr ""
 
-#: src/settings-window.vala:137
+#: src/settings-window.vala:156
 msgid "Duration of the upward launch bounce in milliseconds"
 msgstr ""
 
-#: src/settings-window.vala:146
+#: src/settings-window.vala:165
 msgid "Maximum magnification"
 msgstr ""
 
-#: src/settings-window.vala:147
+#: src/settings-window.vala:166
 msgid "Largest icon size while the pointer is over it"
 msgstr ""
 
-#: src/settings-window.vala:156
+#: src/settings-window.vala:175
 msgid "Neighbour reach"
 msgstr ""
 
-#: src/settings-window.vala:157
+#: src/settings-window.vala:176
 msgid "How many icon widths the wave affects on each side"
 msgstr ""
 
-#: src/settings-window.vala:166
+#: src/settings-window.vala:185
 msgid "Animation response"
 msgstr ""
 
-#: src/settings-window.vala:167
+#: src/settings-window.vala:186
 msgid "Time in milliseconds; lower values react faster"
 msgstr ""
 
-#: src/trash-dock-icon.vala:30
+#: src/trash-dock-icon.vala:33
 msgid "Trash"
 msgstr ""
 
-#: src/trash-dock-icon.vala:142
+#: src/trash-dock-icon.vala:163
 msgid "Empty Trash…"
 msgstr ""
 
-#: src/trash-dock-icon.vala:170
+#: src/trash-dock-icon.vala:191
 msgid "Empty Trash?"
 msgstr ""
 
-#: src/trash-dock-icon.vala:175
+#: src/trash-dock-icon.vala:196
 msgid "All items in Trash will be permanently deleted."
 msgstr ""
 
-#: src/trash-dock-icon.vala:183
+#: src/trash-dock-icon.vala:204
 msgid "Cancel"
 msgstr ""
 
-#: src/trash-dock-icon.vala:187
+#: src/trash-dock-icon.vala:208
 msgid "Empty Trash"
 msgstr ""
 
-#: src/trash-dock-icon.vala:221
+#: src/trash-dock-icon.vala:242
 msgid "Could not empty Trash."
 msgstr ""

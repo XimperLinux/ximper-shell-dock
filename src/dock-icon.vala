@@ -15,6 +15,7 @@ namespace XimperShellDock {
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
         private double vertical_bounce_offset = 0.0;
+        private DockPosition dock_position = DockPosition.BOTTOM;
         private Adw.TimedAnimation? bounce_animation;
         private int bounce_step = 0;
         private bool bouncing_for_launch = false;
@@ -35,7 +36,8 @@ namespace XimperShellDock {
         public signal void drag_state_changed (bool active);
 
         public DockIcon (AppEntry entry, int icon_size, bool pinned = true,
-                         bool bounce_on_launch = false, int bounce_duration = 200) {
+                         bool bounce_on_launch = false, int bounce_duration = 200,
+                         DockPosition position = DockPosition.BOTTOM) {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
             this.app_entry = entry;
             this.desktop_id = entry.desktop_id;
@@ -43,6 +45,7 @@ namespace XimperShellDock {
             this.icon_size = icon_size;
             this.bounce_on_launch = bounce_on_launch;
             this.bounce_duration = bounce_duration;
+            this.dock_position = position;
 
             halign = Gtk.Align.CENTER;
 
@@ -88,6 +91,20 @@ namespace XimperShellDock {
 
             setup_context_menu ();
             setup_dnd ();
+            apply_position (position);
+        }
+
+        public void apply_position (DockPosition position) {
+            dock_position = position;
+            orientation = position.is_vertical () ? Gtk.Orientation.HORIZONTAL
+                                                   : Gtk.Orientation.VERTICAL;
+            indicator_box.orientation = position.is_vertical () ? Gtk.Orientation.VERTICAL
+                                                                  : Gtk.Orientation.HORIZONTAL;
+            if (position == DockPosition.LEFT)
+                reorder_child_after (indicator_box, null);
+            else
+                reorder_child_after (indicator_box, button);
+            queue_draw ();
         }
 
         public void set_running (bool running) {
@@ -124,8 +141,16 @@ namespace XimperShellDock {
             int width = get_width ();
             int height = get_height ();
             double scale = magnification;
-            double visual_x = horizontal_offset + width * (1.0 - scale) / 2.0;
-            double visual_y = height * (1.0 - scale) + vertical_bounce_offset;
+            double visual_x;
+            double visual_y;
+            if (!dock_position.is_vertical ()) {
+                visual_x = horizontal_offset + width * (1.0 - scale) / 2.0;
+                visual_y = (dock_position == DockPosition.TOP ? 0.0 : height * (1.0 - scale)) + vertical_bounce_offset;
+            } else {
+                visual_x = dock_position == DockPosition.LEFT ? vertical_bounce_offset
+                    : width * (1.0 - scale) + vertical_bounce_offset;
+                visual_y = horizontal_offset + height * (1.0 - scale) / 2.0;
+            }
             int left = (int) (double.max (-visual_x, 0.0) + 0.999);
             int right = (int) (double.max (visual_x + width * scale - width, 0.0) + 0.999);
             int top = (int) (double.max (-visual_y, 0.0) + 0.999);
@@ -176,7 +201,8 @@ namespace XimperShellDock {
             bool moving_up = bounce_step % 2 == 0;
             double bounce_height = icon_size * 0.55;
             if (bounce_height < 14.0) bounce_height = 14.0;
-            double target_offset = moving_up ? -bounce_height : 0.0;
+            double outward = dock_position == DockPosition.LEFT || dock_position == DockPosition.TOP ? 1.0 : -1.0;
+            double target_offset = moving_up ? outward * bounce_height : 0.0;
             uint duration;
             if (launch_window_detected) {
                 duration = moving_up ? (uint) (bounce_duration * 7 / 10)
@@ -236,10 +262,18 @@ namespace XimperShellDock {
 
             float scale = (float) magnification;
             var offset = Graphene.Point ();
-            offset.init (
-                (float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
-                get_height () * (1.0f - scale) + (float) vertical_bounce_offset
-            );
+            if (!dock_position.is_vertical ()) {
+                offset.init (
+                    (float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
+                    (dock_position == DockPosition.TOP ? 0.0f : get_height () * (1.0f - scale)) + (float) vertical_bounce_offset
+                );
+            } else {
+                offset.init (
+                    dock_position == DockPosition.LEFT ? (float) vertical_bounce_offset
+                        : get_width () * (1.0f - scale) + (float) vertical_bounce_offset,
+                    (float) horizontal_offset + (get_height () * (1.0f - scale)) / 2.0f
+                );
+            }
 
             snapshot.save ();
             snapshot.translate (offset);
@@ -296,6 +330,7 @@ namespace XimperShellDock {
             var popover = new Gtk.Popover ();
             popover.set_parent (button);
             popover.has_arrow = true;
+            popover.position = dock_position.inward_popover_position ();
             popover.add_css_class ("menu");
 
             var menu_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);

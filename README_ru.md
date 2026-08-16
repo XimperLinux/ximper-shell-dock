@@ -11,6 +11,7 @@
 ## Возможности
 
 - Плавающий и закреплённый режимы; для плавающего режима доступно автоскрытие.
+- Размещение снизу, слева или справа экрана с переключением без перезапуска.
 - Индикаторы запущенных и активных приложений; незакреплённые запущенные приложения выводятся отдельно.
 - Волна увеличения иконок при наведении с настраиваемыми масштабом, радиусом и скоростью реакции; нажатия и перетаскивание работают и на увеличенной части иконки.
 - Необязательная анимация подпрыгивания иконки до появления окна запущенного приложения.
@@ -50,6 +51,7 @@ ximper-shell-dock --describe  # вывести текущую конфигура
 ```json
 {
   "mode": "floating",
+  "position": "bottom",
   "show_trash": false,
   "magnify_on_hover": false,
   "bounce_on_launch": false,
@@ -75,6 +77,7 @@ ximper-shell-dock --describe  # вывести текущую конфигура
 | Ключ | Тип | По умолчанию | Описание |
 |-----|-----|-------------|----------|
 | `mode` | string | `"floating"` | `"floating"` — автоскрываемый док с триггером у края экрана; `"pinned"` — постоянно видимый док |
+| `position` | string | `"bottom"` | Край экрана: `"bottom"`, `"top"`, `"left"` или `"right"` |
 | `show_trash` | bool | `false` | Показывать системную корзину после папок-стопок в конце дока |
 | `magnify_on_hover` | bool | `false` | Включить волну увеличения иконок при наведении |
 | `magnify_scale` | int | `135` | Максимальный размер иконки при наведении, в процентах |
@@ -117,7 +120,7 @@ cp /etc/xdg/ximper-shell/dock/style.css \
 }
 ```
 
-Полезные селекторы: `.dock-window`, `.dock-window.floating`, `.dock-window.pinned`, `.dock-content`, `.dock-icon`, `.dock-indicator` и `.dock-folder-item`. Цвета тем GTK/libadwaita, например `@window_bg_color`, `@headerbar_bg_color` и `@accent_bg_color`, следуют за активной системной темой.
+Полезные селекторы: `.dock-window`, `.dock-window.floating`, `.dock-window.pinned`, `.dock-window.position-bottom`, `.dock-window.position-top`, `.dock-window.position-left`, `.dock-window.position-right`, `.dock-content`, `.dock-icon`, `.dock-indicator` и `.dock-folder-item`. Цвета тем GTK/libadwaita, например `@window_bg_color`, `@headerbar_bg_color` и `@accent_bg_color`, следуют за активной системной темой.
 
 ### Параметры папок-стопок
 

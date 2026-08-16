@@ -84,10 +84,13 @@ namespace XimperShellDock {
             setup_autohide ();
 
             config.notify["dock-mode"].connect (() => {
-                for (uint i = 0; i < dock_windows.length; i++) {
-                    dock_windows[i].apply_mode ();
-                }
+                for (uint i = 0; i < dock_windows.length; i++) dock_windows[i].apply_mode ();
                 setup_autohide ();
+            });
+            config.notify["dock-position"].connect (() => {
+                for (uint i = 0; i < dock_windows.length; i++) dock_windows[i].apply_position ();
+                for (uint i = 0; i < dock_triggers.length; i++)
+                    dock_triggers[i].apply_position (config.dock_position);
             });
 
             window_tracker.windows_changed.connect (() => {
@@ -261,7 +264,7 @@ namespace XimperShellDock {
                 if (should_autohide && enabled) {
                     if (trigger == null) {
                         trigger = new DockTrigger (
-                            this, dock.monitor, config.floating_margin
+                            this, dock.monitor, config.floating_margin, config.dock_position
                         );
                         trigger.trigger_activated.connect (() => {
                             dock.reveal_from_trigger ();

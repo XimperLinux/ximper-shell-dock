@@ -14,9 +14,33 @@
     box-shadow: 0 1px 3px @headerbar_shade_color;
 }
 
+.dock-window.position-top.floating .dock-content {
+    box-shadow: 0 1px 3px @headerbar_shade_color;
+}
+
+.dock-window.position-left.floating .dock-content {
+    box-shadow: 1px 0 3px @headerbar_shade_color;
+}
+
+.dock-window.position-right.floating .dock-content {
+    box-shadow: -1px 0 3px @headerbar_shade_color;
+}
+
 .dock-window.pinned .dock-content {
     border-radius: 0;
     box-shadow: 0 -1px 0 @headerbar_shade_color;
+}
+
+.dock-window.position-top.pinned .dock-content {
+    box-shadow: 0 1px 0 @headerbar_shade_color;
+}
+
+.dock-window.position-left.pinned .dock-content {
+    box-shadow: 1px 0 0 @headerbar_shade_color;
+}
+
+.dock-window.position-right.pinned .dock-content {
+    box-shadow: -1px 0 0 @headerbar_shade_color;
 }
 
 .dock-icon {
@@ -45,6 +69,14 @@
     margin-right: 4px;
 }
 
+.dock-window.position-left .dock-separator,
+.dock-window.position-right .dock-separator {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
 .dock-icon-focused {
     background: alpha(@accent_bg_color, 0.12);
 }
@@ -58,6 +90,12 @@
     border-radius: 2px;
     min-width: 6px;
     min-height: 3px;
+}
+
+.dock-window.position-left .dock-indicator,
+.dock-window.position-right .dock-indicator {
+    min-width: 3px;
+    min-height: 6px;
 }
 
 .tile-dragging {

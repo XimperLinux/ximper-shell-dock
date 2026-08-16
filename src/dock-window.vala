@@ -4,10 +4,19 @@ namespace XimperShellDock {
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
         private Gtk.Button? input_button;
+        private DockPosition dock_position = DockPosition.BOTTOM;
 
-        public GridWaveIcon () {
+        public GridWaveIcon (DockPosition position = DockPosition.BOTTOM) {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
             halign = Gtk.Align.CENTER;
+            apply_position (position);
+        }
+
+        public void apply_position (DockPosition position) {
+            dock_position = position;
+            orientation = position.is_vertical () ? Gtk.Orientation.HORIZONTAL
+                                                   : Gtk.Orientation.VERTICAL;
+            queue_draw ();
         }
 
         public void set_visual_state (double scale, double offset) {
@@ -38,8 +47,13 @@ namespace XimperShellDock {
             }
             float scale = (float) magnification;
             var offset = Graphene.Point ();
-            offset.init ((float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
-                         get_height () * (1.0f - scale));
+            if (!dock_position.is_vertical())
+                offset.init ((float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
+                             dock_position == DockPosition.TOP ? 0.0f : get_height () * (1.0f - scale));
+            else
+                offset.init (dock_position == DockPosition.LEFT ? 0.0f
+                            : get_width () * (1.0f - scale),
+                             (float) horizontal_offset + (get_height () * (1.0f - scale)) / 2.0f);
             snapshot.save ();
             snapshot.translate (offset);
             snapshot.scale (scale, scale);
@@ -56,12 +70,17 @@ namespace XimperShellDock {
         public double layout_offset;
         public Graphene.Rect bounds;
         public double visual_offset = 0.0;
+        private DockPosition position;
 
-        public WaveIconState (Gtk.Widget widget, Graphene.Rect bounds, double scale) {
+        public WaveIconState (Gtk.Widget widget, Graphene.Rect bounds, double scale,
+                              DockPosition position) {
             this.widget = widget;
             this.bounds = bounds;
-            this.center = bounds.origin.x + bounds.size.width / 2.0;
-            this.width = bounds.size.width;
+            this.position = position;
+            this.center = position.is_vertical ()
+                ? bounds.origin.y + bounds.size.height / 2.0
+                : bounds.origin.x + bounds.size.width / 2.0;
+            this.width = position.is_vertical () ? bounds.size.height : bounds.size.width;
             this.scale = scale;
             this.layout_offset = 0.0;
         }
@@ -74,9 +93,17 @@ namespace XimperShellDock {
         }
 
         public bool contains_visual (double x, double y) {
-            double visual_x = bounds.origin.x + visual_offset +
-                bounds.size.width * (1.0 - scale) / 2.0;
-            double visual_y = bounds.origin.y + bounds.size.height * (1.0 - scale);
+            double visual_x;
+            double visual_y;
+            if (!position.is_vertical ()) {
+                visual_x = bounds.origin.x + visual_offset + bounds.size.width * (1.0 - scale) / 2.0;
+                visual_y = bounds.origin.y + (position == DockPosition.TOP ? 0.0
+                    : bounds.size.height * (1.0 - scale));
+            } else {
+                visual_x = bounds.origin.x + (position == DockPosition.LEFT ? 0.0
+                    : bounds.size.width * (1.0 - scale));
+                visual_y = bounds.origin.y + visual_offset + bounds.size.height * (1.0 - scale) / 2.0;
+            }
             return x >= visual_x && x <= visual_x + bounds.size.width * scale &&
                 y >= visual_y && y <= visual_y + bounds.size.height * scale;
         }
@@ -146,6 +173,7 @@ namespace XimperShellDock {
         private weak Application app;
         public Gdk.Monitor? monitor { get; private set; }
         private int niri_logical_monitor_width = 0;
+        private int niri_logical_monitor_height = 0;
         private Gtk.Box wave_surface;
         private Gtk.Box dock_content;
         private Gtk.Box main_box;
@@ -216,7 +244,8 @@ namespace XimperShellDock {
             effective_icon_size = app.config.icon_size;
 
             LayerShellHelper.setup_dock_floating (
-                this, app.config.floating_margin, LayerShellHelper.parse_layer (app.config.layer)
+                this, app.config.floating_margin, LayerShellHelper.parse_layer (app.config.layer),
+                app.config.dock_position
             );
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
@@ -235,6 +264,7 @@ namespace XimperShellDock {
                 else if (autohide_enabled) schedule_hide ();
             });
             populate_icons ();
+            apply_position ();
 
             app.config.notify["icon-size"].connect (() => {
                 rebuild_dock ();
@@ -260,9 +290,11 @@ namespace XimperShellDock {
             });
             app.config.notify["floating-margin"].connect (() => {
                 if (app.config.dock_mode != DockMode.FLOATING) return;
-                GtkLayerShell.set_margin (
-                    this, GtkLayerShell.Edge.BOTTOM, app.config.floating_margin
-                );
+                GtkLayerShell.Edge edge = GtkLayerShell.Edge.BOTTOM;
+                if (app.config.dock_position == DockPosition.TOP) edge = GtkLayerShell.Edge.TOP;
+                else if (app.config.dock_position == DockPosition.LEFT) edge = GtkLayerShell.Edge.LEFT;
+                else if (app.config.dock_position == DockPosition.RIGHT) edge = GtkLayerShell.Edge.RIGHT;
+                GtkLayerShell.set_margin (this, edge, app.config.floating_margin);
                 if (linked_trigger != null)
                     linked_trigger.set_edge_margin (app.config.floating_margin);
             });
@@ -287,7 +319,7 @@ namespace XimperShellDock {
             motion.motion.connect ((x, y) => {
                 wave_pointer_x = x;
                 wave_pointer_y = y;
-                update_icon_magnification (x);
+                update_icon_magnification (app.config.dock_position.is_vertical () ? y : x);
             });
             ((Gtk.Widget) this).add_controller (motion);
 
@@ -365,12 +397,72 @@ namespace XimperShellDock {
             // window content above it.
             LayerShellHelper.apply_dock_mode (
                 this, app.config.dock_mode, get_exclusive_zone_height (),
-                app.config.floating_margin
+                app.config.floating_margin, app.config.dock_position
             );
             if (app.config.dock_mode == DockMode.PINNED)
                 floating_surface_left_margin = 0;
             if (get_child () != null) {
-                dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
+                dock_content.hexpand = app.config.dock_mode == DockMode.PINNED &&
+                    !app.config.dock_position.is_vertical ();
+                dock_content.vexpand = app.config.dock_mode == DockMode.PINNED &&
+                    app.config.dock_position.is_vertical ();
+            }
+        }
+
+        public void apply_position () {
+            reset_icon_magnification ();
+            var orientation = app.config.dock_position.orientation ();
+            main_box.orientation = orientation;
+            icon_box.orientation = orientation;
+            running_box.orientation = orientation;
+            folder_box.orientation = orientation;
+            trash_box.orientation = orientation;
+            running_separator.orientation = app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL;
+            folder_separator.orientation = running_separator.orientation;
+            grid_wrapper.apply_position (app.config.dock_position);
+            app_drag_gaps.set_orientation (orientation);
+            folder_drag_gaps.set_orientation (orientation);
+            update_box_positions (icon_box);
+            update_box_positions (running_box);
+            update_box_positions (folder_box);
+            update_box_positions (trash_box);
+            dock_content.orientation = app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL;
+            wave_surface.orientation = dock_content.orientation;
+            if (!app.config.dock_position.is_vertical ()) {
+                var edge_align = app.config.dock_position == DockPosition.TOP
+                    ? Gtk.Align.START : Gtk.Align.END;
+                dock_content.halign = Gtk.Align.CENTER; dock_content.valign = edge_align;
+                wave_surface.halign = Gtk.Align.CENTER; wave_surface.valign = edge_align;
+            } else {
+                var edge_align = app.config.dock_position == DockPosition.LEFT
+                    ? Gtk.Align.START : Gtk.Align.END;
+                dock_content.halign = edge_align; dock_content.valign = Gtk.Align.CENTER;
+                wave_surface.halign = edge_align; wave_surface.valign = Gtk.Align.CENTER;
+            }
+            remove_css_class ("position-bottom");
+            remove_css_class ("position-top");
+            remove_css_class ("position-left");
+            remove_css_class ("position-right");
+            add_css_class ("position-" + app.config.dock_position.to_string ());
+            set_axis_margins (main_box, 0, 0);
+            set_axis_margins (wave_surface, 0, 0);
+            if (folder_stack_window != null)
+                folder_stack_window.apply_position (app.config.dock_position);
+            set_size_request (-1, -1);
+            apply_mode ();
+            update_icon_sizes_to_fit ();
+            queue_resize ();
+        }
+
+        private void update_box_positions (Gtk.Box box) {
+            var child = box.get_first_child ();
+            while (child != null) {
+                if (child is DockIcon) ((DockIcon) child).apply_position (app.config.dock_position);
+                else if (child is FolderDockIcon) ((FolderDockIcon) child).apply_position (app.config.dock_position);
+                else if (child is TrashDockIcon) ((TrashDockIcon) child).apply_position (app.config.dock_position);
+                child = child.get_next_sibling ();
             }
         }
 
@@ -441,9 +533,11 @@ namespace XimperShellDock {
                 set_visible (false);
                 opacity = 1;
                 if (app.config.dock_mode == DockMode.FLOATING) {
-                    GtkLayerShell.set_margin (
-                        this, GtkLayerShell.Edge.BOTTOM, app.config.floating_margin
-                    );
+                    GtkLayerShell.Edge edge = GtkLayerShell.Edge.BOTTOM;
+                    if (app.config.dock_position == DockPosition.TOP) edge = GtkLayerShell.Edge.TOP;
+                    else if (app.config.dock_position == DockPosition.LEFT) edge = GtkLayerShell.Edge.LEFT;
+                    else if (app.config.dock_position == DockPosition.RIGHT) edge = GtkLayerShell.Edge.RIGHT;
+                    GtkLayerShell.set_margin (this, edge, app.config.floating_margin);
                 }
             });
             anim.play ();
@@ -556,7 +650,7 @@ namespace XimperShellDock {
             var popover = new Gtk.Popover ();
             popover.set_parent (icon);
             popover.has_arrow = true;
-            popover.position = Gtk.PositionType.TOP;
+            popover.position = app.config.dock_position.inward_popover_position ();
             popover.add_css_class ("menu");
 
             var list = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
@@ -597,7 +691,8 @@ namespace XimperShellDock {
             for (uint i = 0; i < entries.length; i++) {
                 var icon = new DockIcon (entries[i], app.config.icon_size, false,
                                          app.config.bounce_on_launch,
-                                         app.config.bounce_duration);
+                                         app.config.bounce_duration,
+                                         app.config.dock_position);
                 icon.set_running (true);
                 icon.set_window_count (app.window_tracker.windows_for_app (icon.app_entry).length);
                 icon.set_focused (app.window_tracker.is_focused_app (icon.app_entry));
@@ -655,13 +750,13 @@ namespace XimperShellDock {
         }
 
         private void build_ui () {
-            var main_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            var main_box = new Gtk.Box (app.config.dock_position.orientation (), 2);
             this.main_box = main_box;
             main_box.halign = Gtk.Align.CENTER;
             main_box.valign = Gtk.Align.CENTER;
 
             // Grid button — same structure as DockIcon
-            grid_wrapper = new GridWaveIcon ();
+            grid_wrapper = new GridWaveIcon (app.config.dock_position);
 
             grid_button = new Gtk.Button ();
             grid_button.add_css_class ("dock-icon");
@@ -682,35 +777,39 @@ namespace XimperShellDock {
             grid_wrapper.append (grid_indicator);
 
             // Pinned icons
-            icon_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            icon_box = new Gtk.Box (app.config.dock_position.orientation (), 2);
             icon_box.overflow = Gtk.Overflow.VISIBLE;
 
             // Running (not pinned) icons
-            running_separator = new Gtk.Separator (Gtk.Orientation.VERTICAL);
+            running_separator = new Gtk.Separator (app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL);
             running_separator.add_css_class ("dock-separator");
             running_separator.visible = false;
 
-            running_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            running_box = new Gtk.Box (app.config.dock_position.orientation (), 2);
             running_box.overflow = Gtk.Overflow.VISIBLE;
             running_box.visible = false;
 
-            folder_separator = new Gtk.Separator (Gtk.Orientation.VERTICAL);
+            folder_separator = new Gtk.Separator (app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL);
             folder_separator.add_css_class ("dock-separator");
             folder_separator.visible = false;
 
-            folder_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            folder_box = new Gtk.Box (app.config.dock_position.orientation (), 2);
             folder_box.overflow = Gtk.Overflow.VISIBLE;
             folder_box.visible = false;
 
-            trash_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 2);
+            trash_box = new Gtk.Box (app.config.dock_position.orientation (), 2);
             trash_box.overflow = Gtk.Overflow.VISIBLE;
             trash_box.visible = false;
 
             app_drag_gaps = new DockItemGapController (
-                icon_box, get_spacer_width (), (widget) => widget is DockIcon
+                icon_box, get_spacer_width (), (widget) => widget is DockIcon,
+                app.config.dock_position.orientation ()
             );
             folder_drag_gaps = new DockItemGapController (
-                folder_box, get_spacer_width (), (widget) => widget is FolderDockIcon
+                folder_box, get_spacer_width (), (widget) => widget is FolderDockIcon,
+                app.config.dock_position.orientation ()
             );
 
             main_box.append (grid_wrapper);
@@ -721,14 +820,19 @@ namespace XimperShellDock {
             main_box.append (folder_box);
             main_box.append (trash_box);
 
-            dock_content = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            dock_content = new Gtk.Box (app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL, 0);
             dock_content.add_css_class ("dock-content");
             dock_content.halign = Gtk.Align.CENTER;
             dock_content.valign = Gtk.Align.END;
-            dock_content.hexpand = app.config.dock_mode == DockMode.PINNED;
+            dock_content.hexpand = app.config.dock_mode == DockMode.PINNED &&
+                !app.config.dock_position.is_vertical ();
+            dock_content.vexpand = app.config.dock_mode == DockMode.PINNED &&
+                app.config.dock_position.is_vertical ();
             dock_content.append (main_box);
 
-            wave_surface = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+            wave_surface = new Gtk.Box (app.config.dock_position.is_vertical ()
+                ? Gtk.Orientation.HORIZONTAL : Gtk.Orientation.VERTICAL, 0);
             wave_surface.halign = Gtk.Align.CENTER;
             wave_surface.valign = Gtk.Align.END;
             wave_surface.append (dock_content);
@@ -743,7 +847,7 @@ namespace XimperShellDock {
                     app_drag_gaps.clear ();
                     return (Gdk.DragAction) 0;
                 }
-                app_drag_gaps.move_to (app_drag_gaps.compute_insert_index (x));
+                app_drag_gaps.move_to (app_drag_gaps.compute_insert_index (app.config.dock_position.is_vertical () ? y : x));
                 return Gdk.DragAction.MOVE;
             });
             icon_drop.leave.connect (() => {
@@ -757,7 +861,7 @@ namespace XimperShellDock {
                 var source_id = (string) val;
                 if (source_id == null || ConfigManager.is_folder_item (source_id) ||
                     !is_known_app_drop (source_id)) return false;
-                int idx = app_drag_gaps.compute_insert_index (x);
+                int idx = app_drag_gaps.compute_insert_index (app.config.dock_position.is_vertical () ? y : x);
                 app_drag_gaps.clear ();
                 reorder_dock_item_at (normalize_drop_item (source_id), idx);
                 return true;
@@ -770,7 +874,7 @@ namespace XimperShellDock {
                     folder_drag_gaps.clear ();
                     return (Gdk.DragAction) 0;
                 }
-                folder_drag_gaps.move_to (folder_drag_gaps.compute_insert_index (x));
+                folder_drag_gaps.move_to (folder_drag_gaps.compute_insert_index (app.config.dock_position.is_vertical () ? y : x));
                 return Gdk.DragAction.MOVE;
             });
             folder_drop.leave.connect (() => {
@@ -785,7 +889,7 @@ namespace XimperShellDock {
                 if (source_id == null || !ConfigManager.is_folder_item (source_id)) return false;
                 var path = ConfigManager.item_folder_path (source_id);
                 if (!FileUtils.test (path, FileTest.IS_DIR)) return false;
-                int position = folder_drag_gaps.compute_insert_index (x);
+                int position = folder_drag_gaps.compute_insert_index (app.config.dock_position.is_vertical () ? y : x);
                 folder_drag_gaps.clear ();
                 app.reorder_dock_folder (path, position);
                 return true;
@@ -878,6 +982,7 @@ namespace XimperShellDock {
             var popover = new Gtk.Popover ();
             popover.set_parent (target);
             popover.has_arrow = true;
+            popover.position = app.config.dock_position.inward_popover_position ();
             popover.autohide = true;
             Gdk.Rectangle pointing_rect = Gdk.Rectangle ();
             pointing_rect.x = (int) x;
@@ -1009,6 +1114,22 @@ namespace XimperShellDock {
             queue_resize ();
         }
 
+        private int get_axis_margin (Gtk.Widget widget, bool start) {
+            if (app.config.dock_position.is_vertical ())
+                return start ? widget.margin_top : widget.margin_bottom;
+            return start ? widget.margin_start : widget.margin_end;
+        }
+
+        private void set_axis_margins (Gtk.Widget widget, int start, int end) {
+            if (app.config.dock_position.is_vertical ()) {
+                widget.margin_top = start; widget.margin_bottom = end;
+                widget.margin_start = 0; widget.margin_end = 0;
+            } else {
+                widget.margin_start = start; widget.margin_end = end;
+                widget.margin_top = 0; widget.margin_bottom = 0;
+            }
+        }
+
         // The configured size is an upper bound.  Floating layer-shell
         // surfaces are sized from their natural width, so GTK cannot shrink
         // this box for us when it grows wider than its monitor.
@@ -1017,7 +1138,7 @@ namespace XimperShellDock {
             if (available_width <= 0) return;
 
             int previous_size = effective_icon_size;
-            int previous_reserve = wave_surface.margin_start;
+            int previous_reserve = get_axis_margin (wave_surface, true);
             int previous_height = DOCK_HEIGHT;
             int minimum = 0;
             int natural = 0;
@@ -1034,9 +1155,8 @@ namespace XimperShellDock {
                 size = low + (high - low) / 2;
                 set_effective_icon_size (size);
                 int reserve = get_wave_horizontal_reserve ();
-                wave_surface.margin_start = reserve;
-                wave_surface.margin_end = reserve;
-                wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
+                set_axis_margins (wave_surface, reserve, reserve);
+                wave_surface.measure (app.config.dock_position.orientation (), -1,
                                       out minimum, out natural, null, null);
                 if (natural <= available_width) {
                     fits = true;
@@ -1050,9 +1170,8 @@ namespace XimperShellDock {
             size = fits ? best : MIN_ICON_SIZE;
             set_effective_icon_size (size);
             int reserve = get_wave_horizontal_reserve ();
-            wave_surface.margin_start = reserve;
-            wave_surface.margin_end = reserve;
-            wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
+            set_axis_margins (wave_surface, reserve, reserve);
+            wave_surface.measure (app.config.dock_position.orientation (), -1,
                               out minimum, out natural, null, null);
             if (natural > available_width) {
                 warning ("Dock contents exceed monitor width even at minimum icon size (%dpx)",
@@ -1062,12 +1181,16 @@ namespace XimperShellDock {
             int height = get_dock_height ();
             if (DOCK_HEIGHT != height) {
                 DOCK_HEIGHT = height;
-                set_size_request (-1, DOCK_HEIGHT);
                 apply_mode ();
             }
+            // apply_position() clears the previous size request while
+            // switching axes. Restore it even when the calculated extent is
+            // unchanged, otherwise GTK allocates only the bar and clips the
+            // transparent headroom used by magnified icons.
+            set_size_request (app.config.dock_position.is_vertical () ? DOCK_HEIGHT : -1,
+                              app.config.dock_position.is_vertical () ? -1 : DOCK_HEIGHT);
             if (wave_strength < 0.002) {
-                main_box.margin_start = 0;
-                main_box.margin_end = 0;
+                set_axis_margins (main_box, 0, 0);
             }
             if (effective_icon_size != previous_size ||
                 reserve != previous_reserve || DOCK_HEIGHT != previous_height) {
@@ -1089,10 +1212,11 @@ namespace XimperShellDock {
             // GDK's Wayland monitor geometry may expose the pre-transform
             // mode width. Niri reports the actual logical output size, which
             // matters for portrait displays.
-            int width = niri_logical_monitor_width > 0
-                ? niri_logical_monitor_width
-                : monitor.geometry.width;
-            return width;
+            if (app.config.dock_position.is_vertical ())
+                return niri_logical_monitor_height > 0
+                    ? niri_logical_monitor_height : monitor.geometry.height;
+            return niri_logical_monitor_width > 0
+                ? niri_logical_monitor_width : monitor.geometry.width;
         }
 
         // A floating layer surface with neither horizontal anchor is placed
@@ -1104,8 +1228,13 @@ namespace XimperShellDock {
             if (monitor_width <= 0) return;
             int side_margin = int.max ((monitor_width - content_width) / 2, 0);
             floating_surface_left_margin = side_margin;
-            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, side_margin);
-            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.RIGHT, side_margin);
+            if (app.config.dock_position.is_vertical ()) {
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.TOP, side_margin);
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.BOTTOM, side_margin);
+            } else {
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, side_margin);
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.RIGHT, side_margin);
+            }
         }
 
         private int get_dock_height () {
@@ -1145,6 +1274,7 @@ namespace XimperShellDock {
 
         private void refresh_niri_logical_monitor_width () {
             niri_logical_monitor_width = 0;
+            niri_logical_monitor_height = 0;
             if (monitor == null || !NiriHelper.is_available ()) return;
 
             try {
@@ -1162,9 +1292,10 @@ namespace XimperShellDock {
                 if (output == null || !output.has_member ("logical")) return;
 
                 var logical = output.get_object_member ("logical");
-                if (logical != null && logical.has_member ("width")) {
+                if (logical != null && logical.has_member ("width"))
                     niri_logical_monitor_width = (int) logical.get_int_member ("width");
-                }
+                if (logical != null && logical.has_member ("height"))
+                    niri_logical_monitor_height = (int) logical.get_int_member ("height");
             } catch (Error e) {
                 // Fall back to the GDK geometry when Niri is unavailable.
             }
@@ -1231,7 +1362,7 @@ namespace XimperShellDock {
         private void collect_wave_item (Gtk.Widget widget, GenericArray<WaveIconState> icons) {
             Graphene.Rect bounds;
             if (!widget.compute_bounds (this, out bounds)) return;
-            icons.add (new WaveIconState (widget, bounds, 1.0));
+            icons.add (new WaveIconState (widget, bounds, 1.0, app.config.dock_position));
         }
 
         private void apply_wave_layout () {
@@ -1319,12 +1450,12 @@ namespace XimperShellDock {
             int reserve = get_wave_horizontal_reserve ();
             int surface_start = int.max (reserve - needed_start, 0);
             int surface_end = int.max (reserve - needed_end, 0);
-            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end ||
-                wave_surface.margin_start != surface_start || wave_surface.margin_end != surface_end) {
-                main_box.margin_start = needed_start;
-                main_box.margin_end = needed_end;
-                wave_surface.margin_start = surface_start;
-                wave_surface.margin_end = surface_end;
+            if (get_axis_margin (main_box, true) != needed_start ||
+                get_axis_margin (main_box, false) != needed_end ||
+                get_axis_margin (wave_surface, true) != surface_start ||
+                get_axis_margin (wave_surface, false) != surface_end) {
+                set_axis_margins (main_box, needed_start, needed_end);
+                set_axis_margins (wave_surface, surface_start, surface_end);
                 queue_resize ();
             }
             active_wave_icons = icons;
@@ -1412,7 +1543,8 @@ namespace XimperShellDock {
                     if (entry == null) continue;
                     var icon = new DockIcon (entry, app.config.icon_size, true,
                                              app.config.bounce_on_launch,
-                                             app.config.bounce_duration);
+                                             app.config.bounce_duration,
+                                             app.config.dock_position);
                     icon.unpin_requested.connect ((id) => {
                         unpin_app (id);
                     });
@@ -1446,7 +1578,8 @@ namespace XimperShellDock {
 
             var folders = app.config.dock_folders;
             for (uint i = 0; i < folders.length; i++) {
-                var folder = new FolderDockIcon (folders[i], app.config.icon_size);
+                var folder = new FolderDockIcon (folders[i], app.config.icon_size,
+                                                 app.config.dock_position);
                 int insert_folder_position = (int) i + 1;
                 folder.remove_requested.connect ((folder_path) => {
                     remove_folder (folder_path);
@@ -1497,7 +1630,8 @@ namespace XimperShellDock {
             bool has_folders = folders.length > 0;
             folder_box.visible = has_folders;
             if (app.config.show_trash) {
-                var trash = new TrashDockIcon (app.config.icon_size);
+                var trash = new TrashDockIcon (app.config.icon_size,
+                                               app.config.dock_position);
                 trash.popover_state_changed.connect ((open) => {
                     popover_open = open;
                     if (open) cancel_hide ();
@@ -1519,16 +1653,20 @@ namespace XimperShellDock {
             Graphene.Rect bounds;
             if (!folder.compute_bounds (this, out bounds)) return;
 
-            int width = folder.get_stack_width ();
-            int monitor_width = get_monitor_width ();
-            int center = floating_surface_left_margin +
-                (int) (bounds.origin.x + bounds.size.width / 2.0f);
-            int left = int.max (center - width / 2, 0);
-            if (monitor_width > 0) left = int.min (left, int.max (monitor_width - width, 0));
+            int stack_extent = app.config.dock_position.is_vertical ()
+                ? folder.get_stack_height () : folder.get_stack_width ();
+            int monitor_extent = get_monitor_width ();
+            int center = floating_surface_left_margin + (int) (
+                app.config.dock_position.is_vertical ()
+                    ? bounds.origin.y + bounds.size.height / 2.0f
+                    : bounds.origin.x + bounds.size.width / 2.0f);
+            int along = int.max (center - stack_extent / 2, 0);
+            if (monitor_extent > 0)
+                along = int.min (along, int.max (monitor_extent - stack_extent, 0));
 
-            int bottom = get_exclusive_zone_height ();
-            if (app.config.dock_mode == DockMode.FLOATING) bottom += 16;
-            folder_stack_window.present_folder (folder, left, bottom);
+            int edge_margin = get_exclusive_zone_height ();
+            if (app.config.dock_mode == DockMode.FLOATING) edge_margin += 16;
+            folder_stack_window.present_folder (folder, along, edge_margin);
         }
 
         // ── DnD gap management ──────────────────────────────────

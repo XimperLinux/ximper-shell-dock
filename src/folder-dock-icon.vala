@@ -22,6 +22,8 @@ namespace XimperShellDock {
         private int icon_size;
         private double magnification = 1.0;
         private double horizontal_offset = 0.0;
+        private DockPosition dock_position = DockPosition.BOTTOM;
+        private Gtk.Box indicator_space;
         private static Gtk.Popover? active_popover = null;
 
         public signal void remove_requested (string folder_path);
@@ -31,10 +33,12 @@ namespace XimperShellDock {
         public signal void drag_state_changed (bool active);
         public signal void favorites_changed ();
 
-        public FolderDockIcon (DockFolderConfig folder_config, int icon_size) {
+        public FolderDockIcon (DockFolderConfig folder_config, int icon_size,
+                               DockPosition position = DockPosition.BOTTOM) {
             Object (orientation: Gtk.Orientation.VERTICAL, spacing: 0);
             this.folder_config = folder_config;
             this.icon_size = icon_size;
+            this.dock_position = position;
             halign = Gtk.Align.CENTER;
 
             button = new Gtk.Button ();
@@ -48,12 +52,24 @@ namespace XimperShellDock {
             button.clicked.connect (() => { stack_requested (this); });
             append (button);
 
-            var indicator_space = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+            indicator_space = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
             indicator_space.add_css_class ("dock-indicator-box");
             append (indicator_space);
 
             setup_context_menu ();
             setup_dnd ();
+            apply_position (position);
+        }
+
+        public void apply_position (DockPosition position) {
+            dock_position = position;
+            orientation = position.is_vertical () ? Gtk.Orientation.HORIZONTAL
+                                                   : Gtk.Orientation.VERTICAL;
+            indicator_space.orientation = position.is_vertical () ? Gtk.Orientation.VERTICAL
+                                                                   : Gtk.Orientation.HORIZONTAL;
+            if (position == DockPosition.LEFT) reorder_child_after (indicator_space, null);
+            else reorder_child_after (indicator_space, button);
+            queue_draw ();
         }
 
         public void update_icon_size (int size) {
@@ -68,8 +84,12 @@ namespace XimperShellDock {
         public Gdk.Paintable? create_drag_paintable (out int hotspot_x, out int hotspot_y) {
             int width = get_width ();
             int height = get_height ();
-            double visual_x = horizontal_offset + width * (1.0 - magnification) / 2.0;
-            double visual_y = height * (1.0 - magnification);
+            double visual_x = !dock_position.is_vertical ()
+                ? horizontal_offset + width * (1.0 - magnification) / 2.0
+                : (dock_position == DockPosition.LEFT ? 0.0 : width * (1.0 - magnification));
+            double visual_y = !dock_position.is_vertical ()
+                ? (dock_position == DockPosition.TOP ? 0.0 : height * (1.0 - magnification))
+                : horizontal_offset + height * (1.0 - magnification) / 2.0;
             int left = (int) (double.max (-visual_x, 0.0) + 0.999);
             int right = (int) (double.max (visual_x + width * magnification - width, 0.0) + 0.999);
             int top = (int) (double.max (-visual_y, 0.0) + 0.999);
@@ -106,8 +126,13 @@ namespace XimperShellDock {
             }
             float scale = (float) magnification;
             var offset = Graphene.Point ();
-            offset.init ((float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
-                         get_height () * (1.0f - scale));
+            if (!dock_position.is_vertical ())
+                offset.init ((float) horizontal_offset + (get_width () * (1.0f - scale)) / 2.0f,
+                             dock_position == DockPosition.TOP ? 0.0f : get_height () * (1.0f - scale));
+            else
+                offset.init (dock_position == DockPosition.LEFT ? 0.0f
+                            : get_width () * (1.0f - scale),
+                             (float) horizontal_offset + (get_height () * (1.0f - scale)) / 2.0f);
             snapshot.save ();
             snapshot.translate (offset);
             snapshot.scale (scale, scale);
@@ -152,6 +177,7 @@ namespace XimperShellDock {
             var popover = new Gtk.Popover ();
             popover.set_parent (button);
             popover.has_arrow = true;
+            popover.position = dock_position.inward_popover_position ();
             popover.add_css_class ("menu");
             var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
             var open = make_menu_item (_("Open in Files"));

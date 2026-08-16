@@ -9,6 +9,7 @@ namespace XimperShellDock {
         private weak Gtk.Box container;
         private DockItemPredicate is_item;
         private int spacer_width;
+        private Gtk.Orientation orientation;
         private weak Gtk.Widget? source_item = null;
         private int gap_index = -1;
         private Gtk.Widget? gap = null;
@@ -19,10 +20,12 @@ namespace XimperShellDock {
         public bool is_dragging { get { return source_item != null; } }
 
         public DockItemGapController (Gtk.Box container, int spacer_width,
-                                      owned DockItemPredicate is_item) {
+                                      owned DockItemPredicate is_item,
+                                      Gtk.Orientation orientation = Gtk.Orientation.HORIZONTAL) {
             this.container = container;
             this.spacer_width = spacer_width;
             this.is_item = (owned) is_item;
+            this.orientation = orientation;
         }
 
         public void begin (Gtk.Widget item) {
@@ -46,10 +49,13 @@ namespace XimperShellDock {
             if (gap != null) {
                 old_gap = gap;
                 var shrinking_gap = old_gap;
-                int current_width = shrinking_gap.get_width ();
+                int current_width = orientation == Gtk.Orientation.HORIZONTAL
+                    ? shrinking_gap.get_width () : shrinking_gap.get_height ();
                 if (current_width <= 0) current_width = spacer_width;
                 var target = new Adw.CallbackAnimationTarget ((value) => {
-                    shrinking_gap.set_size_request ((int) value, 1);
+                    shrinking_gap.set_size_request (
+                        orientation == Gtk.Orientation.HORIZONTAL ? (int) value : 1,
+                        orientation == Gtk.Orientation.VERTICAL ? (int) value : 1);
                 });
                 shrink_animation = new Adw.TimedAnimation (
                     shrinking_gap, (double) current_width, 0, 150, target
@@ -67,7 +73,9 @@ namespace XimperShellDock {
             insert_spacer (gap, index);
             var growing_gap = gap;
             var grow_target = new Adw.CallbackAnimationTarget ((value) => {
-                growing_gap.set_size_request ((int) value, 1);
+                growing_gap.set_size_request (
+                    orientation == Gtk.Orientation.HORIZONTAL ? (int) value : 1,
+                    orientation == Gtk.Orientation.VERTICAL ? (int) value : 1);
             });
             grow_animation = new Adw.TimedAnimation (
                 growing_gap, 0, (double) spacer_width, 150, grow_target
@@ -84,15 +92,17 @@ namespace XimperShellDock {
             move_to (get_source_index ());
         }
 
-        public int compute_insert_index (double cursor_x) {
+        public int compute_insert_index (double cursor_position) {
             int index = 0;
             var child = container.get_first_child ();
             while (child != null) {
                 if (child.visible && is_item (child)) {
                     Graphene.Rect bounds;
                     if (child.compute_bounds (container, out bounds)) {
-                        double midpoint = bounds.origin.x + bounds.size.width / 2.0;
-                        if (cursor_x < midpoint) return index;
+                        double midpoint = orientation == Gtk.Orientation.HORIZONTAL
+                            ? bounds.origin.x + bounds.size.width / 2.0
+                            : bounds.origin.y + bounds.size.height / 2.0;
+                        if (cursor_position < midpoint) return index;
                     }
                     index++;
                 }
@@ -132,9 +142,16 @@ namespace XimperShellDock {
             return index;
         }
 
+        public void set_orientation (Gtk.Orientation value) {
+            if (orientation == value) return;
+            clear ();
+            orientation = value;
+        }
+
         private Gtk.Widget create_spacer (int width) {
-            var spacer = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
-            spacer.set_size_request (width, 1);
+            var spacer = new Gtk.Box (orientation, 0);
+            spacer.set_size_request (orientation == Gtk.Orientation.HORIZONTAL ? width : 1,
+                                     orientation == Gtk.Orientation.VERTICAL ? width : 1);
             spacer.sensitive = false;
             spacer.can_target = false;
             return spacer;

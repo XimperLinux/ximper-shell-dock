@@ -27,6 +27,37 @@ namespace XimperShellDock {
         }
     }
 
+    public enum DockPosition {
+        BOTTOM,
+        TOP,
+        LEFT,
+        RIGHT;
+
+        public static DockPosition from_string (string val) {
+            if (val == "top") return TOP;
+            if (val == "left") return LEFT;
+            if (val == "right") return RIGHT;
+            return BOTTOM;
+        }
+
+        public string to_string () {
+            if (this == TOP) return "top";
+            if (this == LEFT) return "left";
+            if (this == RIGHT) return "right";
+            return "bottom";
+        }
+
+        public bool is_vertical () { return this == LEFT || this == RIGHT; }
+        public Gtk.Orientation orientation () {
+            return is_vertical () ? Gtk.Orientation.VERTICAL : Gtk.Orientation.HORIZONTAL;
+        }
+        public Gtk.PositionType inward_popover_position () {
+            if (this == LEFT) return Gtk.PositionType.RIGHT;
+            if (this == RIGHT) return Gtk.PositionType.LEFT;
+            return this == TOP ? Gtk.PositionType.BOTTOM : Gtk.PositionType.TOP;
+        }
+    }
+
     public enum DockMode {
         FLOATING,
         PINNED;
@@ -45,6 +76,7 @@ namespace XimperShellDock {
     public class ConfigManager : Object {
 
         public DockMode dock_mode { get; set; default = DockMode.FLOATING; }
+        public DockPosition dock_position { get; set; default = DockPosition.BOTTOM; }
         public bool show_trash { get; set; default = false; }
         public bool magnify_on_hover { get; set; default = false; }
         public bool bounce_on_launch { get; set; default = false; }
@@ -95,6 +127,8 @@ namespace XimperShellDock {
 
                 if (root.has_member ("mode"))
                     dock_mode = DockMode.from_string (root.get_string_member ("mode"));
+                if (root.has_member ("position"))
+                    dock_position = DockPosition.from_string (root.get_string_member ("position"));
                 if (root.has_member ("autohide"))
                     config_migrated = true;
                 if (root.has_member ("show_trash"))
@@ -187,6 +221,8 @@ namespace XimperShellDock {
 
             builder.set_member_name ("mode");
             builder.add_string_value (dock_mode.to_string ());
+            builder.set_member_name ("position");
+            builder.add_string_value (dock_position.to_string ());
             builder.set_member_name ("show_trash");
             builder.add_boolean_value (show_trash);
             builder.set_member_name ("magnify_on_hover");

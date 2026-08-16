@@ -36,6 +36,27 @@ namespace XimperShellDock {
             });
             appearance_group.add (mode_row);
 
+            var position_row = new Adw.ComboRow ();
+            position_row.title = _("Position");
+            position_row.subtitle = _("Screen edge where the dock is displayed");
+            position_row.model = new Gtk.StringList ({_("Bottom"), _("Top"), _("Left"), _("Right")});
+            switch (app.config.dock_position) {
+                case DockPosition.TOP: position_row.selected = 1; break;
+                case DockPosition.LEFT: position_row.selected = 2; break;
+                case DockPosition.RIGHT: position_row.selected = 3; break;
+                default: position_row.selected = 0; break;
+            }
+            position_row.notify["selected"].connect (() => {
+                switch (position_row.selected) {
+                    case 1: app.config.dock_position = DockPosition.TOP; break;
+                    case 2: app.config.dock_position = DockPosition.LEFT; break;
+                    case 3: app.config.dock_position = DockPosition.RIGHT; break;
+                    default: app.config.dock_position = DockPosition.BOTTOM; break;
+                }
+                app.config.save ();
+            });
+            appearance_group.add (position_row);
+
             // Icon size
             var icon_row = new Adw.SpinRow.with_range (16, 96, 4);
             icon_row.title = _("Icon Size");

@@ -12,6 +12,7 @@ Supports Hyprland and Niri through compositor helpers.
 ## Features
 
 - Floating layout with edge-triggered autohide, or a permanently visible pinned layout.
+- Placement on the bottom, top, left, or right screen edge, switchable live from Settings.
 - Running and focused-app indicators; unpinned running applications are shown separately.
 - Hover magnification wave with configurable scale, neighbour reach, and response speed; clicks and drag-and-drop also work over the enlarged part of an icon.
 - Optional launch bounce that continues until the application window is detected.
@@ -52,6 +53,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 ```json
 {
   "mode": "floating",
+  "position": "bottom",
   "show_trash": false,
   "magnify_on_hover": false,
   "bounce_on_launch": false,
@@ -77,6 +79,7 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `mode` | string | `"floating"` | `"floating"` for an edge-triggered autohiding dock, or `"pinned"` for an always-visible dock |
+| `position` | string | `"bottom"` | Screen edge: `"bottom"`, `"top"`, `"left"`, or `"right"` |
 | `show_trash` | bool | `false` | Show the system Trash after Folder Stacks at the end of the dock |
 | `magnify_on_hover` | bool | `false` | Enable the hover magnification wave |
 | `magnify_scale` | int | `135` | Maximum hovered icon size, as a percentage |
@@ -125,7 +128,8 @@ For example, to adjust the dock background and its floating shadow:
 ```
 
 Useful selectors include `.dock-window`, `.dock-window.floating`,
-`.dock-window.pinned`, `.dock-content`, `.dock-icon`,
+`.dock-window.pinned`, `.dock-window.position-bottom`, `.dock-window.position-left`,
+`.dock-window.position-right`, `.dock-content`, `.dock-icon`,
 `.dock-indicator`, and `.dock-folder-item`. GTK/libadwaita theme colors such as
 `@window_bg_color`, `@headerbar_bg_color`, and `@accent_bg_color` follow the
 active system theme.

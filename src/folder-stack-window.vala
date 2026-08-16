@@ -11,6 +11,7 @@ namespace XimperShellDock {
         // while it takes focus. That is still interaction with the stack,
         // not a request to dismiss it.
         private bool embedded_popover_open = false;
+        private DockPosition position = DockPosition.BOTTOM;
 
         public signal void state_changed (bool open);
 
@@ -22,9 +23,7 @@ namespace XimperShellDock {
 
             GtkLayerShell.init_for_window (this);
             GtkLayerShell.set_layer (this, GtkLayerShell.Layer.OVERLAY);
-            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.BOTTOM, true);
-            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.LEFT, true);
-            GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.RIGHT, false);
+            apply_position (DockPosition.BOTTOM);
             GtkLayerShell.set_exclusive_zone (this, -1);
             GtkLayerShell.set_keyboard_mode (this, GtkLayerShell.KeyboardMode.ON_DEMAND);
             GtkLayerShell.set_namespace (this, "ximper-shell-dock-folder-stack");
@@ -45,15 +44,40 @@ namespace XimperShellDock {
             });
         }
 
-        public void present_folder (FolderDockIcon folder, int left, int bottom) {
+        public void apply_position (DockPosition value) {
+            if (open && position != value) close_stack ();
+            position = value;
+            GtkLayerShell.Edge[] edges = { GtkLayerShell.Edge.TOP, GtkLayerShell.Edge.BOTTOM,
+                                           GtkLayerShell.Edge.LEFT, GtkLayerShell.Edge.RIGHT };
+            foreach (var edge in edges) {
+                GtkLayerShell.set_anchor (this, edge, false);
+                GtkLayerShell.set_margin (this, edge, 0);
+            }
+            if (position == DockPosition.BOTTOM) {
+                GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.BOTTOM, true);
+                GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.LEFT, true);
+            } else {
+                GtkLayerShell.set_anchor (this, position == DockPosition.LEFT
+                    ? GtkLayerShell.Edge.LEFT : GtkLayerShell.Edge.RIGHT, true);
+                GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.TOP, true);
+            }
+        }
+
+        public void present_folder (FolderDockIcon folder, int along, int edge_margin) {
             if (open && current_folder == folder) {
                 close_stack ();
                 return;
             }
 
             current_folder = folder;
-            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, left);
-            GtkLayerShell.set_margin (this, GtkLayerShell.Edge.BOTTOM, bottom);
+            if (position == DockPosition.BOTTOM) {
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.LEFT, along);
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.BOTTOM, edge_margin);
+            } else {
+                GtkLayerShell.set_margin (this, GtkLayerShell.Edge.TOP, along);
+                GtkLayerShell.set_margin (this, position == DockPosition.LEFT
+                    ? GtkLayerShell.Edge.LEFT : GtkLayerShell.Edge.RIGHT, edge_margin);
+            }
             set_child (folder.create_stack_content (this));
             set_default_size (folder.get_stack_width (), folder.get_stack_height ());
             if (!open) {
