@@ -279,7 +279,8 @@ namespace XimperShellDock {
             }
         }
 
-        public Gtk.Widget create_stack_content (FolderStackWindow stack_window) {
+        public Gtk.Widget create_stack_content (FolderStackWindow stack_window,
+                                                int max_width, int max_height) {
             var box = new Gtk.Box (Gtk.Orientation.VERTICAL, 8);
             box.add_css_class ("dock-folder-view");
             box.margin_top = 10;
@@ -292,6 +293,7 @@ namespace XimperShellDock {
             title.add_css_class ("title-1");
             title.halign = Gtk.Align.START;
             title.hexpand = true;
+            title.ellipsize = Pango.EllipsizeMode.END;
             title.margin_start = 6;
             header.append (title);
             var open_header = new Gtk.Button.from_icon_name ("folder-open-symbolic");
@@ -310,7 +312,8 @@ namespace XimperShellDock {
             box.append (header);
 
             if (folder_config.view_type == "list") {
-                append_scrollable_contents (box, create_folder_list_view (stack_window));
+                append_scrollable_contents (box, create_folder_list_view (stack_window),
+                                            max_width, max_height);
             } else {
                 var flow = new Gtk.FlowBox ();
                 flow.selection_mode = Gtk.SelectionMode.NONE;
@@ -319,7 +322,7 @@ namespace XimperShellDock {
                 flow.homogeneous = true;
                 flow.add_css_class ("dock-folder-grid");
                 populate_folder_contents (flow, false, stack_window);
-                append_scrollable_contents (box, flow);
+                append_scrollable_contents (box, flow, max_width, max_height);
             }
 
             return box;
@@ -458,9 +461,10 @@ namespace XimperShellDock {
             }
         }
 
-        private void append_scrollable_contents (Gtk.Box box, Gtk.Widget contents) {
-            // A Stack must never grow the layer-shell surface or leave the
-            // monitor. Extra items scroll within this fixed visual envelope.
+        private void append_scrollable_contents (Gtk.Box box, Gtk.Widget contents,
+                                                 int max_width, int max_height) {
+            // Keep the layer-shell surface within its monitor. Extra folder
+            // items scroll instead of extending the grid beyond the screen.
             var scroll = new Gtk.ScrolledWindow ();
             int viewport_width = 320;
             int viewport_height = 380;
@@ -470,13 +474,17 @@ namespace XimperShellDock {
                 viewport_width = folder_config.grid_columns * cell_width + 20;
                 viewport_height = folder_config.grid_rows * cell_height + 20;
             }
-            scroll.hscrollbar_policy = Gtk.PolicyType.NEVER;
+            // Account for the stack's margins, header and spacing.
+            int constrained_width = int.min (viewport_width, int.max (max_width - 40, 1));
+            int constrained_height = int.min (viewport_height, int.max (max_height - 88, 1));
+            scroll.hscrollbar_policy = constrained_width < viewport_width
+                ? Gtk.PolicyType.AUTOMATIC : Gtk.PolicyType.NEVER;
             scroll.vscrollbar_policy = Gtk.PolicyType.AUTOMATIC;
-            scroll.set_size_request (viewport_width, viewport_height);
-            scroll.max_content_width = viewport_width;
-            scroll.max_content_height = viewport_height;
-            scroll.min_content_width = viewport_width;
-            scroll.min_content_height = int.min (viewport_height, 160);
+            scroll.set_size_request (constrained_width, constrained_height);
+            scroll.max_content_width = constrained_width;
+            scroll.max_content_height = constrained_height;
+            scroll.min_content_width = constrained_width;
+            scroll.min_content_height = int.min (constrained_height, 160);
             scroll.propagate_natural_width = false;
             scroll.propagate_natural_height = false;
             scroll.set_child (contents);
