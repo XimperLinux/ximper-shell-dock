@@ -1309,20 +1309,22 @@ namespace XimperShellDock {
 
             // Grow the visible dock background to cover the enlarged wave,
             // then return it to its normal size as the animation settles.
+            //
+            // wave_surface reserves this space before hover begins. Consume
+            // that transparent reserve as main_box grows, so the layer-shell
+            // surface keeps a fixed width and its symmetric margins continue
+            // to centre it even on narrow monitors.
             int needed_start = (int) (double.max (base_left - visual_left, 0.0) + 1.0);
             int needed_end = (int) (double.max (visual_right - base_right, 0.0) + 1.0);
-            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end) {
+            int reserve = get_wave_horizontal_reserve ();
+            int surface_start = int.max (reserve - needed_start, 0);
+            int surface_end = int.max (reserve - needed_end, 0);
+            if (main_box.margin_start != needed_start || main_box.margin_end != needed_end ||
+                wave_surface.margin_start != surface_start || wave_surface.margin_end != surface_end) {
                 main_box.margin_start = needed_start;
                 main_box.margin_end = needed_end;
-
-                // The layer surface uses explicit side margins for centering.
-                // Recalculate them after changing the natural content width,
-                // otherwise Wayland allocates the new background to the right.
-                int minimum = 0;
-                int natural = 0;
-                wave_surface.measure (Gtk.Orientation.HORIZONTAL, -1,
-                                      out minimum, out natural, null, null);
-                center_floating_surface (natural);
+                wave_surface.margin_start = surface_start;
+                wave_surface.margin_end = surface_end;
                 queue_resize ();
             }
             active_wave_icons = icons;
