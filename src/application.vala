@@ -244,6 +244,22 @@ namespace XimperShellDock {
             rebuild_docks ();
         }
 
+        public void reload_config () {
+            config.load ();
+            apply_monitor_selection ();
+            for (uint i = 0; i < dock_windows.length; i++) {
+                dock_windows[i].apply_position ();
+                dock_windows[i].apply_mode ();
+                dock_windows[i].rebuild_dock ();
+                dock_windows[i].update_indicators ();
+            }
+            for (uint i = 0; i < dock_triggers.length; i++) {
+                dock_triggers[i].apply_position (config.dock_position);
+                dock_triggers[i].set_edge_margin (config.floating_margin);
+            }
+            setup_autohide ();
+        }
+
         private void rebuild_docks () {
             for (uint i = 0; i < dock_windows.length; i++) {
                 dock_windows[i].rebuild_dock ();

@@ -35,5 +35,9 @@ namespace XimperShellDock {
         public void unpin (string desktop_id) throws DBusError, IOError {
             app.remove_dock_item (ConfigManager.app_item (desktop_id));
         }
+
+        public void reload () throws DBusError, IOError {
+            app.reload_config ();
+        }
     }
 }
