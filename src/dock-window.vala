@@ -1108,7 +1108,6 @@ namespace XimperShellDock {
         public void rebuild_dock () {
             DOCK_HEIGHT = app.config.icon_size + 12;
             populate_icons ();
-            running_icons_signature = "";
             update_indicators ();
             apply_mode ();
             queue_resize ();
