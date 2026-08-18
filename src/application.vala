@@ -23,6 +23,7 @@ namespace XimperShellDock {
             options = {
                 { "add-item", 'a', 0, OptionArg.STRING, null, _("Add an item to dock"), _("ITEM") },
                 { "remove-item", 'r', 0, OptionArg.STRING, null, _("Remove an item from dock"), _("ITEM") },
+                { "reload", 0, 0, OptionArg.NONE, null, _("Reload configuration from disk"), null },
                 { "describe", 0, 0, OptionArg.NONE, null, _("Print configuration and parameter metadata as JSON"), null },
                 { null }
             };
@@ -60,6 +61,11 @@ namespace XimperShellDock {
             }
 
             activate ();
+
+            if (options.contains ("reload")) {
+                reload_config ();
+                return 0;
+            }
 
             string item;
             if (options.lookup ("add-item", "s", out item)) {

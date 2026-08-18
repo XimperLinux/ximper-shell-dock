@@ -36,6 +36,7 @@ ninja -C _build
 ```sh
 ximper-shell-dock --add-item app:<desktop_id>
 ximper-shell-dock --remove-item app:<desktop_id>
+ximper-shell-dock --reload    # reread config from disk and apply it to the running dock
 ximper-shell-dock --describe  # print the current configuration and supported parameters as JSON
 ```
 
@@ -161,6 +162,7 @@ Enable `show_trash` in the settings window or configuration file to add the syst
 - `IsPinned(desktop_id) → bool`
 - `Pin(desktop_id)`
 - `Unpin(desktop_id)`
+- `Reload()` — reread the configuration file and apply changes without restarting
 
 ## License
 

@@ -34,6 +34,7 @@ ninja -C _build
 ```sh
 ximper-shell-dock --add-item app:<desktop_id>
 ximper-shell-dock --remove-item app:<desktop_id>
+ximper-shell-dock --reload    # перечитать конфигурацию с диска и применить её к запущенному доку
 ximper-shell-dock --describe  # вывести текущую конфигурацию и поддерживаемые параметры в JSON
 ```
 
@@ -150,6 +151,7 @@ cp /etc/xdg/ximper-shell/dock/style.css \
 - `IsPinned(desktop_id) → bool`
 - `Pin(desktop_id)`
 - `Unpin(desktop_id)`
+- `Reload()` — перечитать файл конфигурации и применить изменения без перезапуска
 
 ## Лицензия
 
