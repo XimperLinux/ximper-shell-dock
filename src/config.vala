@@ -40,6 +40,8 @@ namespace XimperShellDock {
         }
 
         public void load () {
+            reset_to_defaults ();
+
             if (!FileUtils.test (config_path, FileTest.EXISTS)) {
                 create_default ();
                 return;
@@ -137,8 +139,28 @@ namespace XimperShellDock {
                 if (config_migrated) save ();
             } catch (Error e) {
                 warning ("Failed to load config: %s", e.message);
-                create_default ();
             }
+        }
+
+        private void reset_to_defaults () {
+            dock_mode = DockMode.FLOATING;
+            dock_position = DockPosition.BOTTOM;
+            show_trash = false;
+            magnify_on_hover = false;
+            bounce_on_launch = false;
+            bounce_duration = 200;
+            magnify_scale = 135;
+            magnify_radius = 2.0;
+            magnify_animation_duration = 120;
+            icon_size = 32;
+            hide_delay = 300;
+            floating_margin = 8;
+            layer = "top";
+            launcher_fallback = "wofi --show drun";
+            monitor_ids = new GenericArray<string> ();
+            monitor_selection_explicit = false;
+            dock_items = new GenericArray<string> ();
+            dock_folders = new GenericArray<DockFolderConfig> ();
         }
 
         public void save () {
