@@ -39,6 +39,10 @@ namespace XimperShellDock {
             return helper.is_active_workspace_empty (output);
         }
 
+        public bool get_logical_output_size (string? output, out int width, out int height) {
+            return helper.get_logical_output_size (output, out width, out height);
+        }
+
         public bool is_running_app (AppEntry entry) {
             return helper.is_running_app (entry);
         }

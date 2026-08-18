@@ -2,6 +2,7 @@ dock_deps = [
   dependency('gtk4', version: '>= 4.12'),
   dependency('libadwaita-1', version: '>= 1.4'),
   dependency('gtk4-layer-shell-0', version: '>= 1.0'),
+  dependency('wayland-client'),
   dependency('json-glib-1.0'),
   dependency('gio-unix-2.0'),
   meson.get_compiler('vala').find_library('posix'),
@@ -9,6 +10,7 @@ dock_deps = [
 
 dock_sources = files(
   'config.vapi',
+  'tools/wayland-extra.vapi',
   'main.vala',
   'application.vala',
   'config.vala',
@@ -39,6 +41,7 @@ dock_sources = files(
   'compositor/window-tracker.vala',
 
   'tools/layer-shell-helper.vala',
+  'tools/wayland-output-info.vala',
 )
 
 executable('ximper-shell-dock', dock_sources,

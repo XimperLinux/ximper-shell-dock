@@ -51,6 +51,10 @@ namespace XimperShellDock {
             return workspace_id != null && !occupied_workspace_ids.contains (workspace_id);
         }
 
+        public virtual bool get_logical_output_size (string? output, out int width, out int height) {
+            return WaylandOutputInfoProvider.get_logical_size (output, out width, out height);
+        }
+
         public bool is_running (string desktop_id) {
             if (running_apps == null) return false;
             var app_id = desktop_id.replace (".desktop", "");

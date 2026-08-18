@@ -15,6 +15,40 @@ namespace XimperShellDock {
             return socket != null && socket.length > 0 && FileUtils.test (socket, FileTest.EXISTS);
         }
 
+        public override bool get_logical_output_size (string? output, out int width, out int height) {
+            if (base.get_logical_output_size (output, out width, out height)) return true;
+
+            width = 0;
+            height = 0;
+            if (output == null || output.length == 0) return false;
+
+            try {
+                string stdout_buf;
+                int exit_status;
+                Process.spawn_command_line_sync (
+                    "niri msg --json outputs", out stdout_buf, null, out exit_status
+                );
+                if (exit_status != 0 || stdout_buf == null || stdout_buf.length == 0) return false;
+
+                var parser = new Json.Parser ();
+                parser.load_from_data (stdout_buf);
+                var outputs = parser.get_root ().get_object ();
+                var output_obj = outputs.get_object_member (output);
+                if (output_obj == null || !output_obj.has_member ("logical")) return false;
+
+                var logical = output_obj.get_object_member ("logical");
+                if (logical == null ||
+                    !logical.has_member ("width") ||
+                    !logical.has_member ("height")) return false;
+
+                width = (int) logical.get_int_member ("width");
+                height = (int) logical.get_int_member ("height");
+                return width > 0 && height > 0;
+            } catch (Error e) {
+                return false;
+            }
+        }
+
         public override void start () {
             refresh_clients ();
             connect_event_stream ();

@@ -6,8 +6,8 @@ namespace XimperShellDock {
 
         private weak Application app;
         public Gdk.Monitor? monitor { get; private set; }
-        private int niri_logical_monitor_width = 0;
-        private int niri_logical_monitor_height = 0;
+        private int logical_monitor_width = 0;
+        private int logical_monitor_height = 0;
         private Gtk.Box wave_surface;
         private Gtk.Box dock_content;
         private Gtk.Box main_box;
@@ -69,7 +69,7 @@ namespace XimperShellDock {
         public DockWindow (Application app, Gdk.Monitor? monitor = null) {
             this.app = app;
             this.monitor = monitor;
-            refresh_niri_logical_monitor_width ();
+            refresh_logical_monitor_size ();
             this.title = "Ximper Shell Dock";
             this.decorated = false;
 
@@ -84,7 +84,7 @@ namespace XimperShellDock {
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
                 monitor.notify["geometry"].connect (() => {
-                    refresh_niri_logical_monitor_width ();
+                    refresh_logical_monitor_size ();
                     update_icon_sizes_to_fit ();
                 });
             }
@@ -1043,13 +1043,13 @@ namespace XimperShellDock {
         private int get_monitor_width () {
             if (monitor == null) return 0;
             // GDK's Wayland monitor geometry may expose the pre-transform
-            // mode width. Niri reports the actual logical output size, which
-            // matters for portrait displays.
+            // mode width. Prefer compositor-reported logical output size when
+            // the active helper can provide it.
             if (app.config.dock_position.is_vertical ())
-                return niri_logical_monitor_height > 0
-                    ? niri_logical_monitor_height : monitor.geometry.height;
-            return niri_logical_monitor_width > 0
-                ? niri_logical_monitor_width : monitor.geometry.width;
+                return logical_monitor_height > 0
+                    ? logical_monitor_height : monitor.geometry.height;
+            return logical_monitor_width > 0
+                ? logical_monitor_width : monitor.geometry.width;
         }
 
         // A floating layer surface with neither horizontal anchor is placed
@@ -1105,32 +1105,16 @@ namespace XimperShellDock {
             return (int) (affected_icons * per_icon_growth + 0.5);
         }
 
-        private void refresh_niri_logical_monitor_width () {
-            niri_logical_monitor_width = 0;
-            niri_logical_monitor_height = 0;
-            if (monitor == null || !NiriHelper.is_available ()) return;
+        private void refresh_logical_monitor_size () {
+            logical_monitor_width = 0;
+            logical_monitor_height = 0;
+            if (monitor == null) return;
 
-            try {
-                string stdout_buf;
-                int exit_status;
-                Process.spawn_command_line_sync (
-                    "niri msg --json outputs", out stdout_buf, null, out exit_status
-                );
-                if (exit_status != 0 || stdout_buf == null || stdout_buf.length == 0) return;
-
-                var parser = new Json.Parser ();
-                parser.load_from_data (stdout_buf);
-                var outputs = parser.get_root ().get_object ();
-                var output = outputs.get_object_member (monitor.connector);
-                if (output == null || !output.has_member ("logical")) return;
-
-                var logical = output.get_object_member ("logical");
-                if (logical != null && logical.has_member ("width"))
-                    niri_logical_monitor_width = (int) logical.get_int_member ("width");
-                if (logical != null && logical.has_member ("height"))
-                    niri_logical_monitor_height = (int) logical.get_int_member ("height");
-            } catch (Error e) {
-                // Fall back to the GDK geometry when Niri is unavailable.
+            int width;
+            int height;
+            if (app.window_tracker.get_logical_output_size (monitor.connector, out width, out height)) {
+                logical_monitor_width = width;
+                logical_monitor_height = height;
             }
         }
 
