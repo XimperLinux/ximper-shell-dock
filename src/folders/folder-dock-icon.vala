@@ -1,15 +1,5 @@
 namespace XimperShellDock {
 
-    private class FolderListItem : Object {
-        public File file;
-        public FileInfo info;
-
-        public FolderListItem (File file, FileInfo info) {
-            this.file = file;
-            this.info = info;
-        }
-    }
-
     public class FolderDockIcon : Gtk.Box {
 
         private const int MAX_STACK_ITEMS = 256;
@@ -355,7 +345,7 @@ namespace XimperShellDock {
                     entries.add (info);
                 }
                 enumerator.close ();
-                sort_folder_entries (entries);
+                FolderFileUtils.sort_entries (entries, folder_config.sort_type);
                 append_list_favorites (store, folder, entries);
                 for (uint i = 0; i < entries.length; i++) {
                     var file = folder.get_child (entries[i].get_name ());
@@ -416,7 +406,7 @@ namespace XimperShellDock {
                     entries.add (info);
                 }
                 enumerator.close ();
-                sort_folder_entries (entries);
+                FolderFileUtils.sort_entries (entries, folder_config.sort_type);
                 // Favourites are shown first, in the explicit order selected
                 // by the user. They are not duplicated in the normal list.
                 for (uint favorite = 0; favorite < folder_config.favorite_uris.length; favorite++) {
@@ -491,31 +481,6 @@ namespace XimperShellDock {
             box.append (scroll);
         }
 
-        private void sort_folder_entries (GenericArray<FileInfo> entries) {
-            for (uint i = 0; i < entries.length; i++) {
-                for (uint j = i + 1; j < entries.length; j++) {
-                    if (compare_file_info (entries[i], entries[j]) > 0) {
-                        var item = entries[i];
-                        entries[i] = entries[j];
-                        entries[j] = item;
-                    }
-                }
-            }
-        }
-
-        private int compare_file_info (FileInfo a, FileInfo b) {
-            if (folder_config.sort_type == "kind")
-                return strcmp (a.get_content_type () ?? "", b.get_content_type () ?? "");
-            if (folder_config.sort_type == "modified") {
-                var a_time = a.get_modification_date_time ();
-                var b_time = b.get_modification_date_time ();
-                var a_value = a_time != null ? a_time.to_unix () : 0;
-                var b_value = b_time != null ? b_time.to_unix () : 0;
-                return a_value == b_value ? 0 : (a_value > b_value ? -1 : 1);
-            }
-            return strcmp (a.get_display_name (), b.get_display_name ());
-        }
-
         private Gtk.Widget make_file_button (File file, FileInfo info, bool list,
                                              FolderStackWindow stack_window) {
             var button = new Gtk.Button ();
@@ -565,7 +530,7 @@ namespace XimperShellDock {
             box.append (label);
             button.set_child (box);
             button.clicked.connect (() => {
-                open_file (file, info);
+                FolderFileUtils.open_file (file, info);
             });
             if (!list) {
                 button.set_size_request (int.max (folder_config.item_size + 28, 120),
@@ -659,7 +624,7 @@ namespace XimperShellDock {
         }
 
         private Gtk.Widget make_preview_widget (File file, FileInfo info, int size) {
-            var thumbnail = get_cached_thumbnail (file);
+            var thumbnail = FolderFileUtils.get_cached_thumbnail (file);
             if (thumbnail != null) {
                 var picture = new Gtk.Picture.for_file (thumbnail);
                 picture.set_size_request (size, size);
@@ -685,49 +650,8 @@ namespace XimperShellDock {
             return picture;
         }
 
-        private void open_file (File file, FileInfo info) {
-            try {
-                var content_type = info.get_content_type ();
-                if (content_type == null) {
-                    warning ("Cannot determine the content type of %s", file.get_uri ());
-                    return;
-                }
-                var app_info = AppInfo.get_default_for_type (content_type, false);
-                if (app_info == null) {
-                    warning ("No application is registered for %s", content_type);
-                    return;
-                }
-                var uris = new List<string> ();
-                uris.append (file.get_uri ());
-                var context = Gdk.Display.get_default ().get_app_launch_context ();
-                app_info.launch_uris (uris, context);
-            } catch (Error e) {
-                warning ("Cannot open %s: %s", file.get_uri (), e.message);
-            }
-        }
-
-        private File? get_cached_thumbnail (File file) {
-            var uri = file.get_uri ();
-            var digest = Checksum.compute_for_string (ChecksumType.MD5, uri);
-            // File managers choose their cache bucket independently. In
-            // particular, this folder has only 256px thumbnails in `large`;
-            // looking at `normal` alone incorrectly reports no preview.
-            string[] buckets = { "normal", "large" };
-            for (int i = 0; i < buckets.length; i++) {
-                var path = Path.build_filename (
-                    Environment.get_user_cache_dir (), "thumbnails", buckets[i], digest + ".png"
-                );
-                if (FileUtils.test (path, FileTest.EXISTS)) return File.new_for_path (path);
-            }
-            return null;
-        }
-
         private void open_in_file_manager () {
-            try {
-                AppInfo.launch_default_for_uri (File.new_for_path (folder_path).get_uri (), null);
-            } catch (Error e) {
-                warning ("Cannot open folder %s: %s", folder_path, e.message);
-            }
+            FolderFileUtils.open_in_file_manager (folder_path);
         }
     }
 }
