@@ -131,16 +131,56 @@ namespace XimperShellDock {
             if (parts.length > 0 &&
                 window_class.down () == parts[parts.length - 1].down ()) return true;
 
-            var startup_wm_class = app_info.get_string ("StartupWMClass");
+            var startup_wm_class = this.startup_wm_class;
             if (startup_wm_class != null && startup_wm_class.length > 0 &&
                 window_class.down () == startup_wm_class.down ()) return true;
+
+            // Steam game launchers all execute the Steam client itself
+            // (Exec=steam steam://rungameid/...).  Do not treat a Steam client
+            // window with app_id/class "steam" as every pinned game.  Only
+            // match such launchers when the compositor exposes the concrete
+            // Steam application id (for example steam_app_620 or steam-620).
+            var steam_app_id = get_steam_app_id ();
+            if (steam_app_id != null) {
+                var window_steam_app_id = steam_app_id_from_string (window_class);
+                return window_steam_app_id != null && window_steam_app_id == steam_app_id;
+            }
 
             // Some Wayland applications use the executable name as app_id
             // rather than their reverse-DNS desktop ID and do not provide
             // StartupWMClass (for example org.gnome.DiskUtility/gnome-disks).
-            var executable = app_info.get_executable ();
+            var executable = this.executable;
             return executable != null && executable.length > 0 &&
                 window_class.down () == Path.get_basename (executable).down ();
+        }
+
+        private string? get_steam_app_id () {
+            var exec = exec_line ?? "";
+            var id = steam_app_id_from_rungame_url (exec);
+            if (id != null) return id;
+
+            var icon_name = icon != null ? icon.to_string () : "";
+            return steam_app_id_from_string (icon_name);
+        }
+
+        private static string? steam_app_id_from_rungame_url (string value) {
+            try {
+                var regex = new Regex ("steam://rungameid/([0-9]+)", RegexCompileFlags.CASELESS);
+                MatchInfo match;
+                if (regex.match (value, 0, out match)) return match.fetch (1);
+            } catch (Error e) {
+            }
+            return null;
+        }
+
+        private static string? steam_app_id_from_string (string value) {
+            try {
+                var regex = new Regex ("(?:steam_app_|steam_appid_|steam-)([0-9]+)", RegexCompileFlags.CASELESS);
+                MatchInfo match;
+                if (regex.match (value, 0, out match)) return match.fetch (1);
+            } catch (Error e) {
+            }
+            return null;
         }
 
         public string[] list_actions () {
