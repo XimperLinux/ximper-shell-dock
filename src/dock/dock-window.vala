@@ -418,27 +418,23 @@ namespace XimperShellDock {
                         break;
                     }
                 }
+                if (already_shown) continue;
 
-                if (!already_shown) {
-                    // Check if we already added this class
-                    bool dup = false;
-                    for (uint k = 0; k < shown_classes.length; k++) {
-                        if (shown_classes[k] == running.app_class) {
-                            dup = true;
-                            break;
-                        }
-                    }
-                    if (dup) continue;
+                var entry = app.app_provider.resolve_running_app (running);
 
-                    shown_classes.add (running.app_class);
-
-                    var entry = find_entry_by_class (running.app_class);
-                    if (entry != null) {
-                        desired_entries.add (entry);
-                        signature.append (entry.desktop_id);
-                        signature.append_c ('\x1f');
+                bool dup = false;
+                for (uint k = 0; k < shown_classes.length; k++) {
+                    if (shown_classes[k] == entry.desktop_id) {
+                        dup = true;
+                        break;
                     }
                 }
+                if (dup) continue;
+
+                shown_classes.add (entry.desktop_id);
+                desired_entries.add (entry);
+                signature.append (entry.desktop_id);
+                signature.append_c ('\x1f');
             }
 
             if (signature.str != running_icons_signature) {
@@ -565,22 +561,8 @@ namespace XimperShellDock {
             }
         }
 
-        private AppEntry? find_entry_by_class (string app_class) {
-            var apps = app.app_provider.apps;
-            if (apps == null) return null;
-            for (uint i = 0; i < apps.length; i++) {
-                if (apps[i].matches_window_class (app_class)) return apps[i];
-            }
-            return null;
-        }
-
         private AppEntry? find_entry_by_desktop_id (string desktop_id) {
-            var apps = app.app_provider.apps;
-            if (apps == null) return null;
-            for (uint i = 0; i < apps.length; i++) {
-                if (apps[i].desktop_id == desktop_id) return apps[i];
-            }
-            return null;
+            return app.app_provider.find_by_desktop_id (desktop_id);
         }
 
         private void build_ui () {

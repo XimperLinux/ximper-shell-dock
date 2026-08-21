@@ -359,7 +359,7 @@ namespace XimperShellDock {
                     unpin_requested (desktop_id);
                 });
                 menu_box.append (btn);
-            } else {
+            } else if (app_entry.can_launch) {
                 var btn = make_menu_item (_("Pin to Dock"));
                 btn.clicked.connect (() => {
                     popover.popdown ();

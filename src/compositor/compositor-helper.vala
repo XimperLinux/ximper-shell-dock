@@ -57,7 +57,7 @@ namespace XimperShellDock {
 
         public bool is_running (string desktop_id) {
             if (running_apps == null) return false;
-            var app_id = desktop_id.replace (".desktop", "");
+            var app_id = AppEntry.desktop_entry_name (desktop_id);
             for (uint i = 0; i < running_apps.length; i++) {
                 if (match_class (running_apps[i].app_class, app_id)) return true;
             }
@@ -66,12 +66,12 @@ namespace XimperShellDock {
 
         public bool is_focused (string desktop_id) {
             if (focused_class == null) return false;
-            var app_id = desktop_id.replace (".desktop", "");
+            var app_id = AppEntry.desktop_entry_name (desktop_id);
             return match_class (focused_class, app_id);
         }
 
         public bool matches_desktop_id (string window_class, string desktop_id) {
-            var app_id = desktop_id.replace (".desktop", "");
+            var app_id = AppEntry.desktop_entry_name (desktop_id);
             return match_class (window_class, app_id);
         }
 

@@ -13,8 +13,13 @@ namespace XimperShellDock {
         public Icon? icon { get; private set; }
         public string? categories { get; private set; }
         public string[]? keywords { get; private set; }
+        public string? startup_wm_class { get; private set; default = null; }
+        public string? executable { get; private set; default = null; }
+        public string? exec_line { get; private set; default = null; }
+        public string? filename { get; private set; default = null; }
+        public bool can_launch { get; private set; default = true; }
 
-        private DesktopAppInfo app_info;
+        private DesktopAppInfo? app_info;
 
         public AppEntry (DesktopAppInfo info) {
             this.app_info = info;
@@ -24,9 +29,35 @@ namespace XimperShellDock {
             this.icon = info.get_icon ();
             this.categories = info.get_categories ();
             this.keywords = info.get_keywords ();
+            this.startup_wm_class = info.get_string ("StartupWMClass");
+            this.executable = info.get_executable ();
+            this.exec_line = info.get_commandline ();
+            this.filename = info.get_filename ();
+        }
+
+        public static AppEntry for_window (RunningApp running) {
+            var entry = new AppEntry.from_window (running);
+            return entry;
+        }
+
+        private AppEntry.from_window (RunningApp running) {
+            this.app_info = null;
+            this.desktop_id = "window:" + running.app_class;
+            this.name = running.title.length > 0 ? running.title : running.app_class;
+            this.generic_name = running.app_class;
+            this.icon = new ThemedIcon ("application-x-executable");
+            this.categories = null;
+            this.keywords = null;
+            this.startup_wm_class = running.app_class;
+            this.executable = null;
+            this.exec_line = null;
+            this.filename = null;
+            this.can_launch = false;
         }
 
         public bool launch () {
+            if (app_info == null) return false;
+
             // DBusActivatable applications use the standard GApplication object.
             // Calling the well-known bus name without NO_AUTO_START lets D-Bus
             // activate a cold service. Some third-party desktop files declare
@@ -93,7 +124,7 @@ namespace XimperShellDock {
         }
 
         public bool matches_window_class (string window_class) {
-            var app_id = desktop_id.replace (".desktop", "");
+            var app_id = desktop_entry_name (desktop_id);
             if (window_class.down () == app_id.down ()) return true;
 
             var parts = app_id.split (".");
@@ -113,14 +144,17 @@ namespace XimperShellDock {
         }
 
         public string[] list_actions () {
+            if (app_info == null) return {};
             return app_info.list_actions ();
         }
 
         public string get_action_name (string action_id) {
+            if (app_info == null) return action_id;
             return app_info.get_action_name (action_id);
         }
 
         public void launch_action (string action_id) {
+            if (app_info == null) return;
             try {
                 var keyfile = new KeyFile ();
                 keyfile.load_from_file (app_info.get_filename (), KeyFileFlags.NONE);
@@ -143,7 +177,13 @@ namespace XimperShellDock {
             }
         }
 
-        private static string strip_field_codes (string exec) {
+        public static string desktop_entry_name (string id) {
+            return id.has_suffix (".desktop")
+                ? id.substring (0, id.length - ".desktop".length)
+                : id;
+        }
+
+        public static string strip_field_codes (string exec) {
             var result = new StringBuilder ();
             for (int i = 0; i < exec.length; i++) {
                 if (exec[i] == '%' && i + 1 < exec.length) {
