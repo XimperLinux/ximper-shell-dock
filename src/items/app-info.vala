@@ -64,20 +64,8 @@ namespace XimperShellDock {
             // D-Bus activation without providing a working service, so retain
             // an Exec fallback after the activation attempt fails.
             if (app_info.get_boolean ("DBusActivatable")) {
-                try {
-                    var bus_name = get_dbus_name ();
-                    var conn = Bus.get_sync (BusType.SESSION, null);
-                    conn.call_sync (
-                        bus_name, DBUS_APPLICATION_OBJECT_PATH,
-                        "org.freedesktop.Application", "Activate",
-                        new Variant.tuple ({ new Variant ("a{sv}", null) }),
-                        null, DBusCallFlags.NONE, 2000, null
-                    );
-                    return true;
-                } catch (Error e) {
-                    warning ("D-Bus activation failed for %s: %s; falling back to Exec", desktop_id, e.message);
-                    return launch_exec_fallback ();
-                }
+                activate_dbus_async.begin ();
+                return true;
             }
 
             // Fallback — spawn with setsid so child survives panel death
@@ -92,6 +80,21 @@ namespace XimperShellDock {
             } catch (Error e) {
                 warning ("Failed to launch %s: %s", name, e.message);
                 return false;
+            }
+        }
+
+        private async void activate_dbus_async () {
+            try {
+                var conn = yield Bus.get (BusType.SESSION);
+                yield conn.call (
+                    get_dbus_name (), DBUS_APPLICATION_OBJECT_PATH,
+                    "org.freedesktop.Application", "Activate",
+                    new Variant.tuple ({ new Variant ("a{sv}", null) }),
+                    null, DBusCallFlags.NONE, 2000, null
+                );
+            } catch (Error e) {
+                warning ("D-Bus activation failed for %s: %s; falling back to Exec", desktop_id, e.message);
+                launch_exec_fallback ();
             }
         }
 
