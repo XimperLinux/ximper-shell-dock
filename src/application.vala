@@ -86,6 +86,9 @@ namespace XimperShellDock {
             activated = true;
 
             create_configured_docks ();
+            Gdk.Display.get_default ().get_monitors ().items_changed.connect ((position, removed, added) => {
+                apply_monitor_selection ();
+            });
 
             setup_autohide ();
 
@@ -169,28 +172,26 @@ namespace XimperShellDock {
         }
 
         private void toggle_grid () {
-            for (int attempt = 0; attempt < 3; attempt++) {
+            toggle_grid_async.begin ();
+        }
+
+        private async void toggle_grid_async () {
+            try {
+                var conn = yield Bus.get (BusType.SESSION);
+                yield conn.call (
+                    "ru.ximperlinux.shell.Launcher",
+                    "/ru/ximperlinux/shell/Launcher",
+                    "ru.ximperlinux.shell.Launcher",
+                    "Toggle",
+                    null, null,
+                    DBusCallFlags.NONE, 500, null
+                );
+            } catch (Error e) {
                 try {
-                    var conn = Bus.get_sync (BusType.SESSION, null);
-                    conn.call_sync (
-                        "ru.ximperlinux.shell.Launcher",
-                        "/ru/ximperlinux/shell/Launcher",
-                        "ru.ximperlinux.shell.Launcher",
-                        "Toggle",
-                        null, null,
-                        DBusCallFlags.NONE, 500, null
-                    );
-                    return;
-                } catch (Error e) {
-                    if (attempt < 2) {
-                        Thread.usleep (100000);
-                        continue;
-                    }
-                    try {
-                        Process.spawn_command_line_async (config.launcher_fallback);
-                    } catch (Error e2) {
-                        warning ("Failed to toggle grid: %s", e.message);
-                    }
+                    Process.spawn_command_line_async (config.launcher_fallback);
+                } catch (Error fallback_error) {
+                    warning ("Failed to toggle grid: %s; fallback: %s",
+                             e.message, fallback_error.message);
                 }
             }
         }
@@ -277,10 +278,17 @@ namespace XimperShellDock {
             // the floating mode uses an edge trigger and autohide. Disabled
             // monitor surfaces remain hidden instead of being destroyed.
             bool should_autohide = config.dock_mode == DockMode.FLOATING;
+            var monitors = Gdk.Display.get_default ().get_monitors ();
             for (uint i = 0; i < dock_windows.length; i++) {
                 var dock = dock_windows[i];
-                bool enabled = dock.monitor != null &&
-                    config.is_monitor_enabled (monitor_id (dock.monitor, i));
+                bool enabled = false;
+                for (uint j = 0; j < monitors.get_n_items (); j++) {
+                    var current = (Gdk.Monitor) monitors.get_item (j);
+                    if (dock.monitor == current) {
+                        enabled = config.is_monitor_enabled (monitor_id (current, j));
+                        break;
+                    }
+                }
                 var trigger = find_trigger_for_monitor (dock.monitor);
 
                 if (should_autohide && enabled) {
