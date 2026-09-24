@@ -129,7 +129,6 @@
     margin: 4px;
     border: 1px solid alpha(@headerbar_shade_color, 0.45);
     border-radius: 10px;
-    overflow: hidden;
 }
 
 
