@@ -64,6 +64,11 @@ namespace XimperShellDock {
             // D-Bus activation without providing a working service, so retain
             // an Exec fallback after the activation attempt fails.
             if (app_info.get_boolean ("DBusActivatable")) {
+                // A desktop file may opt in despite an ID that cannot be a
+                // D-Bus name (max.desktop -> max). GDBus asserts instead of
+                // invoking our async error handler for such destinations.
+                if (!DBus.is_name (get_dbus_name ()))
+                    return launch_exec_fallback ();
                 activate_dbus_async.begin ();
                 return true;
             }
