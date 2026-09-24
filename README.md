@@ -15,7 +15,7 @@ Supports Hyprland and Niri through compositor helpers.
 - Placement on the bottom, top, left, or right screen edge, switchable live from Settings.
 - Running and focused-app indicators; unpinned running applications are shown separately.
 - Hover magnification wave with configurable scale, neighbour reach, and response speed; clicks and drag-and-drop also work over the enlarged part of an icon.
-- Optional launch bounce that continues until the application window is detected.
+- Optional launch bounce that stops when the application window appears or after roughly five seconds.
 - Dock width adapts to the monitor: icons shrink only when the configured size cannot fit.
 - Reorder application icons and Folder Stacks by dragging them; drop an application from the launcher to pin it. Reorder feedback keeps a stable animated gap.
 - Add folders as Dock Stacks by dragging a directory from the file manager onto any part of the dock, or through the dock context menu.
@@ -30,6 +30,9 @@ meson setup _build
 ninja -C _build
 ./_build/src/ximper-shell-dock
 ```
+
+Run the non-destructive configuration and desktop-entry regression tests with
+`meson test -C _build --print-errorlogs`.
 
 ## CLI
 
