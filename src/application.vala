@@ -87,26 +87,15 @@ namespace XimperShellDock {
             if (activated) return;
             activated = true;
 
-            create_configured_docks ();
-            Gdk.Display.get_default ().get_monitors ().items_changed.connect ((position, removed, added) => {
-                var monitors = Gdk.Display.get_default ().get_monitors ();
-                for (uint i = position; i < position + added; i++) {
-                    var monitor = (Gdk.Monitor) monitors.get_item (i);
-                    // Wayland can announce the monitor before its connector is known.
-                    // A connector-based selection must be reapplied once it arrives.
-                    monitor.notify["connector"].connect (() => {
-                        var connector = monitor.get_connector ();
-                        if (connector != null) {
-                            for (uint j = 0; j < dock_windows.length; j++) {
-                                if (dock_windows[j].monitor == monitor)
-                                    dock_monitor_ids[j] = connector;
-                            }
-                        }
-                        apply_monitor_selection ();
-                    });
-                }
+            var monitors = Gdk.Display.get_default ().get_monitors ();
+            for (uint i = 0; i < monitors.get_n_items (); i++)
+                watch_monitor_connector ((Gdk.Monitor) monitors.get_item (i));
+            monitors.items_changed.connect ((position, removed, added) => {
+                for (uint i = position; i < position + added; i++)
+                    watch_monitor_connector ((Gdk.Monitor) monitors.get_item (i));
                 apply_monitor_selection ();
             });
+            create_configured_docks ();
 
             setup_autohide ();
 
@@ -131,6 +120,21 @@ namespace XimperShellDock {
                 dock_windows[i].update_indicators ();
             }
 
+        }
+
+        private void watch_monitor_connector (Gdk.Monitor monitor) {
+            // Wayland can announce the monitor before its connector is known.
+            // A connector-based selection must be reapplied once it arrives.
+            monitor.notify["connector"].connect (() => {
+                var connector = monitor.get_connector ();
+                if (connector != null) {
+                    for (uint j = 0; j < dock_windows.length; j++) {
+                        if (dock_windows[j].monitor == monitor)
+                            dock_monitor_ids[j] = connector;
+                    }
+                }
+                apply_monitor_selection ();
+            });
         }
 
         private void create_dock_for_monitor (Gdk.Monitor monitor) {
