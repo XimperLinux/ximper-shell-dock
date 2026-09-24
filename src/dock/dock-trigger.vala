@@ -80,8 +80,9 @@ namespace XimperShellDock {
         public void set_edge_margin (int edge_margin) {
             this.edge_margin = edge_margin;
             int size = int.max (edge_margin, 4);
-            hotspot.set_size_request (position.is_vertical () ? size : -1,
-                                      position.is_vertical () ? -1 : size);
+            if (hotspot != null)
+                hotspot.set_size_request (position.is_vertical () ? size : -1,
+                                          position.is_vertical () ? -1 : size);
         }
 
         public void apply_position (DockPosition value) {
