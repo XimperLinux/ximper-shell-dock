@@ -40,9 +40,8 @@ namespace XimperShellDock {
         }
 
         public void load () {
-            reset_to_defaults ();
-
             if (!FileUtils.test (config_path, FileTest.EXISTS)) {
+                reset_to_defaults ();
                 create_default ();
                 return;
             }
@@ -50,8 +49,12 @@ namespace XimperShellDock {
             try {
                 var parser = new Json.Parser ();
                 parser.load_from_file (config_path);
-
-                var root = parser.get_root ().get_object ();
+                var root_node = parser.get_root ();
+                if (root_node.get_node_type () != Json.NodeType.OBJECT)
+                    throw new IOError.INVALID_DATA ("Dock config root must be an object");
+                var root = root_node.get_object ();
+                // A malformed JSON file must not wipe the running layout on reload.
+                reset_to_defaults ();
                 bool config_migrated = false;
 
                 if (root.has_member ("mode"))
