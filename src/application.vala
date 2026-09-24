@@ -87,6 +87,15 @@ namespace XimperShellDock {
 
             create_configured_docks ();
             Gdk.Display.get_default ().get_monitors ().items_changed.connect ((position, removed, added) => {
+                var monitors = Gdk.Display.get_default ().get_monitors ();
+                for (uint i = position; i < position + added; i++) {
+                    var monitor = (Gdk.Monitor) monitors.get_item (i);
+                    // Wayland can announce the monitor before its connector is known.
+                    // A connector-based selection must be reapplied once it arrives.
+                    monitor.notify["connector"].connect (() => {
+                        apply_monitor_selection ();
+                    });
+                }
                 apply_monitor_selection ();
             });
 
