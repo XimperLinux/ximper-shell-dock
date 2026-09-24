@@ -124,12 +124,14 @@ namespace XimperShellDock {
 
         private void watch_monitor_connector (Gdk.Monitor monitor) {
             // Wayland can announce the monitor before its connector is known.
-            // A connector-based selection must be reapplied once it arrives.
+            // Do not retain a removed monitor through its own signal closure.
+            weak Gdk.Monitor weak_monitor = monitor;
             monitor.notify["connector"].connect (() => {
-                var connector = monitor.get_connector ();
+                if (weak_monitor == null) return;
+                var connector = weak_monitor.get_connector ();
                 if (connector != null) {
                     for (uint j = 0; j < dock_windows.length; j++) {
-                        if (dock_windows[j].monitor == monitor)
+                        if (dock_windows[j].monitor == weak_monitor)
                             dock_monitor_ids[j] = connector;
                     }
                 }
