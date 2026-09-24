@@ -18,6 +18,7 @@ namespace XimperShellDock {
         private DockPosition dock_position = DockPosition.BOTTOM;
         private Adw.TimedAnimation? bounce_animation;
         private int bounce_step = 0;
+        private int64 bounce_started_at = 0;
         private bool bouncing_for_launch = false;
         private bool launch_window_detected = false;
 
@@ -70,7 +71,7 @@ namespace XimperShellDock {
                     else focus_requested (desktop_id);
                 } else {
                     if (bounce_on_launch) play_launch_bounce ();
-                    entry.launch ();
+                    if (!entry.launch ()) stop_launch_bounce ();
                 }
             });
 
@@ -194,6 +195,7 @@ namespace XimperShellDock {
             bouncing_for_launch = true;
             launch_window_detected = false;
             bounce_step = 0;
+            bounce_started_at = GLib.get_monotonic_time ();
             play_next_bounce_step ();
         }
 
@@ -223,9 +225,10 @@ namespace XimperShellDock {
             bounce_animation.done.connect (() => {
                 bounce_step++;
                 bool just_finished_down = bounce_step % 2 == 0;
-                if (bouncing_for_launch && !(launch_window_detected && just_finished_down)) {
+                bool timed_out = GLib.get_monotonic_time () - bounce_started_at >= 5000000;
+                if (bouncing_for_launch && !(just_finished_down && (launch_window_detected || timed_out))) {
                     Idle.add (() => {
-                        play_next_bounce_step ();
+                        if (bouncing_for_launch) play_next_bounce_step ();
                         return Source.REMOVE;
                     });
                 } else {

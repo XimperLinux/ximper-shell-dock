@@ -86,8 +86,8 @@ The dock tracks running and focused windows through compositor-specific helpers:
 | `magnify_scale` | int | `135` | Maximum hovered icon size, as a percentage |
 | `magnify_radius` | float | `2.0` | Wave reach in icon widths on each side |
 | `magnify_animation_duration` | int | `120` | Wave response time in milliseconds |
-| `bounce_on_launch` | bool | `false` | Bounce an icon while its application starts |
-| `bounce_duration` | int | `200` | Upward bounce duration in milliseconds |
+| `bounce_on_launch` | bool | `false` | Bounce an icon while its application starts, for at most about five seconds |
+| `bounce_duration` | int | `200` | Upward bounce duration in milliseconds (clamped to 100–500) |
 | `icon_size` | int | `32` | Dock icon size in pixels |
 | `hide_delay` | int | `300` | Delay before the floating dock hides, in milliseconds (0–5000) |
 | `floating_margin` | int | `8` | Distance between a floating dock and the screen edge, in pixels (0–128) |

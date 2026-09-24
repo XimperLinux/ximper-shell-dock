@@ -70,7 +70,7 @@ namespace XimperShellDock {
                 if (root.has_member ("bounce_on_launch"))
                     bounce_on_launch = root.get_boolean_member ("bounce_on_launch");
                 if (root.has_member ("bounce_duration"))
-                    bounce_duration = (int) root.get_int_member ("bounce_duration");
+                    bounce_duration = ((int) root.get_int_member ("bounce_duration")).clamp (100, 500);
                 if (root.has_member ("magnify_scale"))
                     magnify_scale = (int) root.get_int_member ("magnify_scale");
                 if (root.has_member ("magnify_radius"))
