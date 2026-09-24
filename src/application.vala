@@ -7,6 +7,7 @@ namespace XimperShellDock {
         public WindowTracker window_tracker { get; private set; }
 
         private GenericArray<DockWindow> dock_windows;
+        private GenericArray<string> dock_monitor_ids;
         private GenericArray<DockTrigger> dock_triggers;
         private DockDBusService? dbus_service;
         private bool activated = false;
@@ -19,6 +20,7 @@ namespace XimperShellDock {
                 flags: ApplicationFlags.HANDLES_COMMAND_LINE
             );
             dock_windows = new GenericArray<DockWindow> ();
+            dock_monitor_ids = new GenericArray<string> ();
             dock_triggers = new GenericArray<DockTrigger> ();
             options = {
                 { "add-item", 'a', 0, OptionArg.STRING, null, _("Add an item to dock"), _("ITEM") },
@@ -93,6 +95,13 @@ namespace XimperShellDock {
                     // Wayland can announce the monitor before its connector is known.
                     // A connector-based selection must be reapplied once it arrives.
                     monitor.notify["connector"].connect (() => {
+                        var connector = monitor.get_connector ();
+                        if (connector != null) {
+                            for (uint j = 0; j < dock_windows.length; j++) {
+                                if (dock_windows[j].monitor == monitor)
+                                    dock_monitor_ids[j] = connector;
+                            }
+                        }
                         apply_monitor_selection ();
                     });
                 }
@@ -131,6 +140,7 @@ namespace XimperShellDock {
             });
             add_window (dock);
             dock_windows.add (dock);
+            dock_monitor_ids.add (monitor.get_connector () ?? "");
         }
 
         public static string monitor_id (Gdk.Monitor monitor, uint index) {
@@ -154,8 +164,22 @@ namespace XimperShellDock {
             for (uint i = 0; i < monitors.get_n_items (); i++) {
                 var monitor = (Gdk.Monitor) monitors.get_item (i);
                 var id = monitor_id (monitor, i);
-                if (config.is_monitor_enabled (id) && !has_dock_for_monitor (monitor))
-                    create_dock_for_monitor (monitor);
+                if (config.is_monitor_enabled (id) && !has_dock_for_monitor (monitor)) {
+                    bool rebound = false;
+                    if (monitor.get_connector () != null) {
+                        for (uint j = 0; j < dock_windows.length; j++) {
+                            if (dock_monitor_ids[j] != id || is_connected_monitor (dock_windows[j].monitor, monitors))
+                                continue;
+                            var old_monitor = dock_windows[j].monitor;
+                            var trigger = find_trigger_for_monitor (old_monitor);
+                            dock_windows[j].bind_monitor (monitor);
+                            if (trigger != null) trigger.bind_monitor (monitor);
+                            rebound = true;
+                            break;
+                        }
+                    }
+                    if (!rebound) create_dock_for_monitor (monitor);
+                }
             }
             // Destroying a layer-shell window while GTK processes the switch
             // event can crash GTK. Keep disabled surfaces alive and hidden;
@@ -163,6 +187,13 @@ namespace XimperShellDock {
             setup_autohide ();
             for (uint i = 0; i < dock_windows.length; i++)
                 dock_windows[i].update_indicators ();
+        }
+
+        private bool is_connected_monitor (Gdk.Monitor? monitor, GLib.ListModel monitors) {
+            for (uint i = 0; i < monitors.get_n_items (); i++) {
+                if (monitors.get_item (i) == monitor) return true;
+            }
+            return false;
         }
 
         private bool has_dock_for_monitor (Gdk.Monitor monitor) {

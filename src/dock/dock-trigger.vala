@@ -77,6 +77,13 @@ namespace XimperShellDock {
             set_child (hotspot);
         }
 
+        public void bind_monitor (Gdk.Monitor next_monitor) {
+            set_visible (false);
+            cursor_on_trigger = false;
+            monitor = next_monitor;
+            GtkLayerShell.set_monitor (this, next_monitor);
+        }
+
         public void set_edge_margin (int edge_margin) {
             this.edge_margin = edge_margin;
             int size = int.max (edge_margin, 4);

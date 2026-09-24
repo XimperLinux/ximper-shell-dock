@@ -48,6 +48,12 @@ namespace XimperShellDock {
             });
         }
 
+        public void bind_monitor (Gdk.Monitor next_monitor) {
+            close_stack ();
+            monitor = next_monitor;
+            GtkLayerShell.set_monitor (this, next_monitor);
+        }
+
         public void apply_position (DockPosition value) {
             if (open && position != value) close_stack ();
             position = value;

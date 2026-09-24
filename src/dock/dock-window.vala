@@ -6,6 +6,7 @@ namespace XimperShellDock {
 
         private weak Application app;
         public Gdk.Monitor? monitor { get; private set; }
+        private ulong monitor_geometry_handler = 0;
         private int logical_monitor_width = 0;
         private int logical_monitor_height = 0;
         private Gtk.Box wave_surface;
@@ -83,7 +84,7 @@ namespace XimperShellDock {
             );
             if (monitor != null) {
                 GtkLayerShell.set_monitor (this, monitor);
-                monitor.notify["geometry"].connect (() => {
+                monitor_geometry_handler = monitor.notify["geometry"].connect (() => {
                     refresh_logical_monitor_size ();
                     update_icon_sizes_to_fit ();
                 });
@@ -298,6 +299,22 @@ namespace XimperShellDock {
                 else if (child is TrashDockIcon) ((TrashDockIcon) child).apply_position (app.config.dock_position);
                 child = child.get_next_sibling ();
             }
+        }
+
+        public void bind_monitor (Gdk.Monitor next_monitor) {
+            set_visible (false);
+            if (monitor != null && monitor_geometry_handler != 0)
+                SignalHandler.disconnect (monitor, monitor_geometry_handler);
+            monitor = next_monitor;
+            GtkLayerShell.set_monitor (this, next_monitor);
+            monitor_geometry_handler = next_monitor.notify["geometry"].connect (() => {
+                refresh_logical_monitor_size ();
+                update_icon_sizes_to_fit ();
+            });
+            refresh_logical_monitor_size ();
+            update_icon_sizes_to_fit ();
+            if (folder_stack_window != null)
+                folder_stack_window.bind_monitor (next_monitor);
         }
 
         public void enable_autohide (bool enabled) {
