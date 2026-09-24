@@ -868,9 +868,21 @@ namespace XimperShellDock {
         }
 
         private void choose_folder () {
+            choose_folder_async.begin ();
+        }
+
+        private async void choose_folder_async () {
+            uint subscription_id = 0;
+            DBusConnection? connection = null;
             try {
-                var connection = Bus.get_sync (BusType.SESSION, null);
+                connection = yield Bus.get (BusType.SESSION);
+                var sender = connection.get_unique_name ();
+                if (sender == null || !sender.has_prefix (":")) return;
+                var token = "dock_" + Uuid.string_random ().replace ("-", "_");
+                var request_path = "/org/freedesktop/portal/desktop/request/" +
+                    sender.substring (1).replace (".", "_") + "/" + token;
                 var options = new VariantBuilder (new VariantType ("a{sv}"));
+                options.add ("{sv}", "handle_token", new Variant.string (token));
                 options.add ("{sv}", "directory", new Variant.boolean (true));
                 options.add ("{sv}", "multiple", new Variant.boolean (false));
                 options.add ("{sv}", "modal", new Variant.boolean (true));
@@ -879,17 +891,6 @@ namespace XimperShellDock {
                 // A layer-shell surface cannot safely parent a GTK dialog.
                 // The portal owns its own regular surface; an empty parent
                 // handle is the supported fallback for this surface type.
-                var reply = connection.call_sync (
-                    "org.freedesktop.portal.Desktop",
-                    "/org/freedesktop/portal/desktop",
-                    "org.freedesktop.portal.FileChooser",
-                    "OpenFile",
-                    new Variant ("(ss@a{sv})", "", _("Add Folder to Dock"), options.end ()),
-                    new VariantType ("(o)"),
-                    DBusCallFlags.NONE, -1, null
-                );
-                var request_path = reply.get_child_value (0).get_string ();
-                uint subscription_id = 0;
                 subscription_id = connection.signal_subscribe (
                     "org.freedesktop.portal.Desktop",
                     "org.freedesktop.portal.Request",
@@ -899,32 +900,58 @@ namespace XimperShellDock {
                     DBusSignalFlags.NONE,
                     (conn, sender, object_path, interface_name, signal_name, parameters) => {
                         conn.signal_unsubscribe (subscription_id);
-                        if (parameters.get_child_value (0).get_uint32 () != 0) return;
-
-                        var results = parameters.get_child_value (1);
-                        var result_iter = results.iterator ();
-                        string key;
-                        Variant value;
-                        while (result_iter.next ("{sv}", out key, out value)) {
-                            if (key != "uris") continue;
-                            // a{sv} values are variant-wrapped. The portal
-                            // returns uris as an array of strings inside it.
-                            var uris = value;
-                            if (uris.is_of_type (VariantType.VARIANT))
-                                uris = uris.get_variant ();
-                            if (!uris.is_of_type (VariantType.STRING_ARRAY)) {
-                                warning ("Folder chooser returned invalid uris");
-                                return;
-                            }
-                            var selected = uris.get_strv ();
-                            if (selected.length == 0) return;
-                            add_folder_file (File.new_for_uri (selected[0]));
-                            return;
-                        }
+                        subscription_id = 0;
+                        handle_folder_response (parameters);
                     }
                 );
+                var reply = yield connection.call (
+                    "org.freedesktop.portal.Desktop",
+                    "/org/freedesktop/portal/desktop",
+                    "org.freedesktop.portal.FileChooser",
+                    "OpenFile",
+                    new Variant ("(ss@a{sv})", "", _("Add Folder to Dock"), options.end ()),
+                    new VariantType ("(o)"),
+                    DBusCallFlags.NONE, -1, null
+                );
+                var returned_path = reply.get_child_value (0).get_string ();
+                if (returned_path != request_path && subscription_id != 0) {
+                    connection.signal_unsubscribe (subscription_id);
+                    subscription_id = connection.signal_subscribe (
+                        "org.freedesktop.portal.Desktop", "org.freedesktop.portal.Request",
+                        "Response", returned_path, null, DBusSignalFlags.NONE,
+                        (conn, name, path, iface, signal_name, parameters) => {
+                            conn.signal_unsubscribe (subscription_id);
+                            subscription_id = 0;
+                            handle_folder_response (parameters);
+                        }
+                    );
+                }
             } catch (Error e) {
+                if (connection != null && subscription_id != 0)
+                    connection.signal_unsubscribe (subscription_id);
                 warning ("Failed to open folder chooser portal: %s", e.message);
+            }
+        }
+
+        private void handle_folder_response (Variant parameters) {
+            if (parameters.get_child_value (0).get_uint32 () != 0) return;
+            var results = parameters.get_child_value (1);
+            var result_iter = results.iterator ();
+            string key;
+            Variant value;
+            while (result_iter.next ("{sv}", out key, out value)) {
+                if (key != "uris") continue;
+                var uris = value;
+                if (uris.is_of_type (VariantType.VARIANT))
+                    uris = uris.get_variant ();
+                if (!uris.is_of_type (VariantType.STRING_ARRAY)) {
+                    warning ("Folder chooser returned invalid uris");
+                    return;
+                }
+                var selected = uris.get_strv ();
+                if (selected.length == 0) return;
+                add_folder_file (File.new_for_uri (selected[0]));
+                return;
             }
         }
 
