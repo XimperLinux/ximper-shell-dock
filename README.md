@@ -34,6 +34,14 @@ ninja -C _build
 Run the non-destructive configuration and desktop-entry regression tests with
 `meson test -C _build --print-errorlogs`.
 
+## Application launch
+
+Desktop entries are launched through GIO. Valid `DBusActivatable` entries use
+asynchronous D-Bus activation; if that activation fails, the dock retries the
+entry's `Exec` through GIO. Other entries (including invalid D-Bus names such
+as `max.desktop`) use GIO's normal `Exec` handling and `setsid()` so their
+processes survive a dock restart.
+
 ## CLI
 
 ```sh
