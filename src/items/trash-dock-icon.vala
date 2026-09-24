@@ -208,14 +208,18 @@ namespace XimperShellDock {
             var confirm = new Gtk.Button.with_label (_("Empty Trash"));
             confirm.add_css_class ("destructive-action");
             confirm.clicked.connect (() => {
-                var error_message = empty_trash ();
-                if (error_message == null) {
-                    schedule_icon_refresh ();
-                    popover.popdown ();
-                } else {
-                    warning_label.label = error_message;
-                    warning_label.add_css_class ("error");
-                }
+                confirm.sensitive = false;
+                empty_trash.begin ((obj, result) => {
+                    var error_message = empty_trash.end (result);
+                    confirm.sensitive = true;
+                    if (error_message == null) {
+                        schedule_icon_refresh ();
+                        popover.popdown ();
+                    } else {
+                        warning_label.label = error_message;
+                        warning_label.add_css_class ("error");
+                    }
+                });
             });
             actions.append (confirm);
             box.append (actions);
@@ -228,17 +232,18 @@ namespace XimperShellDock {
             popover.popup ();
         }
 
-        private string? empty_trash () {
+        private async string? empty_trash () {
             try {
-                string stdout_buf;
-                string stderr_buf;
-                int exit_status;
-                Process.spawn_command_line_sync (
-                    "gio trash --empty", out stdout_buf, out stderr_buf, out exit_status
+                var process = new Subprocess.newv (
+                    { "gio", "trash", "--empty" },
+                    SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
                 );
-                if (exit_status != 0) {
-                    warning ("Failed to empty Trash: %s", stderr_buf);
-                    var message = stderr_buf.strip ();
+                string? stdout_buf;
+                string? stderr_buf;
+                yield process.communicate_utf8_async (null, null, out stdout_buf, out stderr_buf);
+                if (!process.get_successful ()) {
+                    warning ("Failed to empty Trash: %s", stderr_buf ?? "");
+                    var message = (stderr_buf ?? "").strip ();
                     return message.length > 0 ? message : _("Could not empty Trash.");
                 }
                 return null;
