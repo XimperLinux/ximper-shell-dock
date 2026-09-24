@@ -6,6 +6,14 @@ namespace XimperShellDock {
     }
 }
 
+[DBus (name = "org.freedesktop.Application")]
+private class FakeApplication : Object {
+    public bool activated = false;
+    public void activate (HashTable<string, Variant> platform_data) {
+        activated = true;
+    }
+}
+
 private void test_field_codes () {
     assert (XimperShellDock.AppEntry.strip_field_codes (
         "program --format=%% --file=%f") == "program --format=% --file=");
@@ -58,10 +66,44 @@ private void test_missing_service_fallback () {
     }
 }
 
+private void test_valid_dbus_activation () {
+    try {
+        var dir = DirUtils.make_tmp ("ximper-dock-valid-bus-test-XXXXXX");
+        var desktop = Path.build_filename (dir, "org.ximperlinux.LaunchTestService.desktop");
+        var marker = Path.build_filename (dir, "exec-should-not-run");
+        FileUtils.set_contents (desktop, "[Desktop Entry]\nType=Application\nName=Test valid D-Bus\n" +
+            "Exec=/usr/bin/touch " + marker + "\nDBusActivatable=true\n");
+        var conn = Bus.get_sync (BusType.SESSION);
+        var service = new FakeApplication ();
+        var registration = conn.register_object ("/org/ximperlinux/LaunchTestService", service);
+        conn.call_sync ("org.freedesktop.DBus", "/org/freedesktop/DBus",
+            "org.freedesktop.DBus", "RequestName",
+            new Variant ("(su)", "org.ximperlinux.LaunchTestService", 0u),
+            new VariantType ("(u)"), DBusCallFlags.NONE, 1000);
+        var info = new DesktopAppInfo.from_filename (desktop);
+        assert (info != null);
+        assert (new XimperShellDock.AppEntry (info).launch ());
+        for (int i = 0; i < 100 && !service.activated; i++) {
+            while (MainContext.default ().iteration (false)) {}
+            Thread.usleep (20000);
+        }
+        assert (service.activated);
+        assert (!FileUtils.test (marker, FileTest.EXISTS));
+        conn.unregister_object (registration);
+    } catch (Error e) {
+        error ("D-Bus test setup failed: %s", e.message);
+    }
+}
+
 int main (string[] args) {
     Test.init (ref args);
+    var bus = new TestDBus (TestDBusFlags.NONE);
+    bus.up ();
     Test.add_func ("/desktop-entry/exec-field-codes", test_field_codes);
     Test.add_func ("/desktop-entry/invalid-dbus-name-fallback", test_invalid_dbus_name_fallback);
     Test.add_func ("/desktop-entry/missing-service-fallback", test_missing_service_fallback);
-    return Test.run ();
+    Test.add_func ("/desktop-entry/valid-dbus-activation", test_valid_dbus_activation);
+    var result = Test.run ();
+    bus.down ();
+    return result;
 }
