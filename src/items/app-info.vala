@@ -231,6 +231,12 @@ namespace XimperShellDock {
             for (int i = 0; i < exec.length; i++) {
                 if (exec[i] == '%' && i + 1 < exec.length) {
                     var code = exec[i + 1];
+                    // The Desktop Entry specification uses %% for a literal percent.
+                    if (code == '%') {
+                        result.append_c ('%');
+                        i++;
+                        continue;
+                    }
                     if ("uUfFickdDnNvm".contains (code.to_string ())) {
                         i++;
                         continue;
