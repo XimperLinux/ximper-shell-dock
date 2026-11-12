@@ -27,6 +27,7 @@ namespace XimperShellDock {
         public GenericArray<DockFolderConfig> dock_folders;
 
         private string config_path;
+        private Json.Object? baseline;
         public string config_file { get { return config_path; } }
 
         public ConfigManager () {
@@ -40,15 +41,25 @@ namespace XimperShellDock {
         }
 
         public void load () {
-            if (!FileUtils.test (config_path, FileTest.EXISTS)) {
+            try {
+                load_config (true);
+            } catch (Error e) {
+                warning ("Failed to load config: %s", e.message);
+            }
+        }
+
+        public void load_config (bool persist) throws Error {
+            string source = config_path;
+            if (!FileUtils.test (source, FileTest.EXISTS)) {
                 reset_to_defaults ();
-                create_default ();
+                baseline = null;
+                create_default (persist);
                 return;
             }
 
-            try {
+            {
                 var parser = new Json.Parser ();
-                parser.load_from_file (config_path);
+                parser.load_from_file (source);
                 var root_node = parser.get_root ();
                 if (root_node.get_node_type () != Json.NodeType.OBJECT)
                     throw new IOError.INVALID_DATA ("Dock config root must be an object");
@@ -139,9 +150,12 @@ namespace XimperShellDock {
                     });
                 }
                 migrate_legacy_folder_items ();
-                if (config_migrated) save ();
-            } catch (Error e) {
-                warning ("Failed to load config: %s", e.message);
+                baseline = snapshot ().get_object ();
+                if (persist && config_migrated) {
+                    // Only migrate fields that still match this read under the lock.
+                    baseline = root;
+                    save_changes (true);
+                }
             }
         }
 
@@ -166,7 +180,7 @@ namespace XimperShellDock {
             dock_folders = new GenericArray<DockFolderConfig> ();
         }
 
-        public void save () {
+        public Json.Node snapshot () {
             var builder = new Json.Builder ();
 
             builder.begin_object ();
@@ -245,25 +259,70 @@ namespace XimperShellDock {
 
             builder.end_object ();
 
-            var generator = new Json.Generator ();
-            generator.set_root (builder.get_root ());
-            generator.pretty = true;
-            generator.indent = 2;
+            return builder.get_root ();
+        }
 
+        [CCode (cname = "flock", cheader_filename = "sys/file.h")]
+        private static extern int file_lock (int fd, int operation);
+        [CCode (cname = "LOCK_EX", cheader_filename = "sys/file.h")]
+        private extern const int LOCK_EX;
+
+        public void save () {
+            save_changes (false);
+        }
+
+        private void save_changes (bool migrating) {
             try {
-                var dir = Path.get_dirname (config_path);
-                DirUtils.create_with_parents (dir, 0755);
-                generator.to_file (config_path);
+                if (DirUtils.create_with_parents (Path.get_dirname (config_path), 0700) < 0)
+                    throw new IOError.FAILED ("Cannot create config directory");
+                int fd = Posix.open (config_path + ".lock", Posix.O_CREAT | Posix.O_RDWR | Posix.O_CLOEXEC, 0600);
+                if (fd < 0) throw new IOError.FAILED ("Cannot open config lock");
+                try {
+                    while (file_lock (fd, LOCK_EX) < 0) {
+                        if (Posix.errno != Posix.EINTR) throw new IOError.FAILED ("Cannot lock config");
+                    }
+                    var latest = new Json.Object ();
+                    bool exists = FileUtils.test (config_path, FileTest.EXISTS);
+                    if (exists) {
+                        var parser = new Json.Parser ();
+                        parser.load_from_file (config_path);
+                        if (parser.get_root ().get_node_type () != Json.NodeType.OBJECT)
+                            throw new IOError.INVALID_DATA ("Expected config object");
+                        latest = parser.get_root ().get_object ();
+                    }
+                    var current = snapshot ().get_object ();
+                    foreach (var key in current.get_members ()) {
+                        var value = current.get_member (key);
+                        // On concurrent first launch, retain fields already initialized on disk.
+                        if (baseline == null && latest.has_member (key)) continue;
+                        if (migrating && latest.has_member (key) &&
+                            (!baseline.has_member (key) ||
+                             !latest.get_member (key).equal (baseline.get_member (key)))) continue;
+                        if (exists && baseline != null && baseline.has_member (key)
+                            && baseline.get_member (key).equal (value)) continue;
+                        latest.set_member (key, value.copy ());
+                    }
+                    if (migrating && baseline.has_member ("autohide") && latest.has_member ("autohide") &&
+                        baseline.get_member ("autohide").equal (latest.get_member ("autohide")))
+                        latest.remove_member ("autohide");
+                    var node = new Json.Node (Json.NodeType.OBJECT);
+                    node.set_object (latest);
+                    FileUtils.set_contents_full (config_path, Json.to_string (node, true) + "\n",
+                        -1, FileSetContentsFlags.CONSISTENT, 0600);
+                    baseline = current;
+                } finally {
+                    Posix.close (fd);
+                }
             } catch (Error e) {
                 warning ("Failed to save config: %s", e.message);
             }
         }
 
-        private void create_default () {
+        private void create_default (bool persist) {
             dock_items.add (app_item ("org.gnome.Nautilus.desktop"));
             dock_items.add (app_item ("org.gnome.TextEditor.desktop"));
             dock_items.add (app_item ("firefox.desktop"));
-            save ();
+            if (persist) save ();
         }
 
         public static string app_item (string desktop_id) {

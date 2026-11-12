@@ -1,9 +1,17 @@
 namespace XimperShellDock {
 
-    public string describe_json (ConfigManager config) {
+    public string describe_json (ConfigManager config, bool running = true) {
         var builder = new Json.Builder ();
         builder.begin_object ();
 
+        builder.set_member_name ("api_version");
+        builder.add_int_value (1);
+        builder.set_member_name ("write_protocol");
+        builder.add_string_value ("locked-json-v1");
+        if (!FileUtils.test (config.config_file, FileTest.EXISTS)) {
+            builder.set_member_name ("initial_config");
+            builder.add_value (config.snapshot ());
+        }
         builder.set_member_name ("config");
         builder.begin_object ();
         builder.set_member_name ("mode"); builder.add_string_value (config.dock_mode.to_string ());
@@ -51,7 +59,7 @@ namespace XimperShellDock {
 
         builder.set_member_name ("runtime");
         builder.begin_object ();
-        builder.set_member_name ("running"); builder.add_boolean_value (true);
+        builder.set_member_name ("running"); builder.add_boolean_value (running);
         builder.end_object ();
         builder.set_member_name ("paths");
         builder.begin_object ();
@@ -62,12 +70,32 @@ namespace XimperShellDock {
         builder.begin_object ();
         builder.set_member_name ("properties");
         builder.begin_object ();
+        builder.set_member_name ("monitors");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("string"); builder.end_object ();
+        builder.end_object ();
+        builder.set_member_name ("dock_items");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("string"); builder.end_object ();
+        builder.set_member_name ("readOnly"); builder.add_boolean_value (true);
+        builder.end_object ();
+        builder.set_member_name ("dock_folders");
+        builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("array");
+        builder.set_member_name ("items"); builder.begin_object ();
+        builder.set_member_name ("type"); builder.add_string_value ("object"); builder.end_object ();
+        builder.set_member_name ("readOnly"); builder.add_boolean_value (true);
+        builder.end_object ();
         add_enum_property (builder, "mode", "Dock mode", "floating", { "floating", "pinned" });
         add_enum_property (builder, "position", "Dock position", "bottom", { "bottom", "top", "left", "right" });
         add_boolean_property (builder, "show_trash", "Show Trash", false);
         add_boolean_property (builder, "magnify_on_hover", "Magnify icons on hover", false);
         add_boolean_property (builder, "bounce_on_launch", "Bounce icon on launch", false);
-        add_integer_property (builder, "bounce_duration", "Bounce duration", 200, 50, 2000);
+        add_integer_property (builder, "bounce_duration", "Bounce duration", 200, 100, 500);
         add_integer_property (builder, "magnify_scale", "Magnification scale", 135, 100, 200);
         add_number_property (builder, "magnify_radius", "Magnification radius", 2.0, 1.0, 8.0);
         add_integer_property (builder, "magnify_animation_duration", "Magnification animation duration", 120, 0, 1000);

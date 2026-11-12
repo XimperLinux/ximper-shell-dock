@@ -65,8 +65,13 @@ namespace XimperShellDock {
             activate ();
 
             if (options.contains ("reload")) {
-                reload_config ();
-                return 0;
+                try {
+                    reload_config ();
+                    return 0;
+                } catch (Error e) {
+                    cmdline.printerr ("%s\n", e.message);
+                    return 1;
+                }
             }
 
             string item;
@@ -297,8 +302,8 @@ namespace XimperShellDock {
             rebuild_docks ();
         }
 
-        public void reload_config () {
-            config.load ();
+        public void reload_config () throws Error {
+            config.load_config (true);
             apply_monitor_selection ();
             for (uint i = 0; i < dock_windows.length; i++) {
                 dock_windows[i].apply_position ();

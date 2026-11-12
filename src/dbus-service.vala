@@ -37,7 +37,11 @@ namespace XimperShellDock {
         }
 
         public void reload () throws DBusError, IOError {
-            app.reload_config ();
+            try {
+                app.reload_config ();
+            } catch (Error e) {
+                throw new IOError.FAILED (e.message);
+            }
         }
     }
 }
